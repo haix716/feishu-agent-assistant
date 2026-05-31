@@ -41,6 +41,12 @@ async function fetchContext(
   if (userInfo) ctx.userName = userInfo.name;
   if (chatInfo) ctx.chatName = chatInfo.name;
 
+  // 群聊中如果用户名是系统默认名，尝试从群成员列表获取更准确的名字
+  if (chatType === 'group' && (!ctx.userName || ctx.userName.startsWith('飞书用户'))) {
+    const memberName = await larkService.getChatMemberName(chatId, userId);
+    if (memberName) ctx.userName = memberName;
+  }
+
   return ctx;
 }
 

@@ -115,6 +115,23 @@ class LarkService {
     return null;
   }
 
+  /** 从群成员列表获取用户在群里的名字（nickname） */
+  async getChatMemberName(chatId: string, userId: string): Promise<string | null> {
+    try {
+      const resp = await this.client.im.chatMembers.get({
+        path: { chat_id: chatId },
+        params: { member_id_type: 'open_id' },
+      });
+      if (resp.code === 0 && resp.data?.items) {
+        const member = resp.data.items.find((m: any) => m.member_id === userId);
+        if (member?.name) return member.name;
+      }
+    } catch (err) {
+      console.error('getChatMemberName failed:', err);
+    }
+    return null;
+  }
+
   /** 获取消息中的文件资源 */
   async getFileResource(messageId: string, fileKey: string): Promise<Buffer | null> {
     try {
