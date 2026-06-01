@@ -9,10 +9,21 @@ const conversations = new Map<string, ChatMessage[]>();
 /** 每用户并发锁 */
 const running = new Map<string, boolean>();
 
-/** 节流更新卡片（200ms 间隔） */
+/** 节流更新卡片（1000ms 间隔，避免飞书频率限制） */
 const throttledUpdate = pThrottle(
-  (messageId: string, content: string) => larkService.updateCard(messageId, content),
-  200
+  async (messageId: string, content: string) => {
+    try {
+      await larkService.updateCard(messageId, content);
+    } catch (err: any) {
+      // 飞书频率限制错误静默忽略，下次节流调用会重试
+      if (err?.data?.code === 230020) {
+        console.warn('[throttledUpdate] 飞书频率限制，跳过本次更新');
+        return;
+      }
+      throw err;
+    }
+  },
+  1000
 );
 
 /**
