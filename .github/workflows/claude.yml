@@ -28,13 +28,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Debug secrets
-        run: |
-          echo "ANTHROPIC_BASE_URL is set: ${{ secrets.ANTHROPIC_BASE_URL != '' }}"
-          echo "ANTHROPIC_API_KEY is set: ${{ secrets.ANTHROPIC_API_KEY != '' }}"
-          echo "ANTHROPIC_BASE_URL value: ${{ secrets.ANTHROPIC_BASE_URL }}"
-          echo "Key length: $(echo -n '${{ secrets.ANTHROPIC_API_KEY }}' | wc -c)"
-
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         env:
@@ -48,6 +41,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ github.token }}
           trigger_phrase: "@claude"
+          claude_args: "--permission-mode acceptEdits"
           prompt: |
             This is a Claude-powered Feishu bot project (Node.js + TypeScript).
             Follow the project's CLAUDE.md for conventions.
