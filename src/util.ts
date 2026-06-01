@@ -61,6 +61,11 @@ export function pThrottle<T extends (...args: any[]) => Promise<any>>(
       latestArgs = null;
       waiters = [];
       try {
+        // trailing 调用也要遵守间隔
+        const elapsed2 = Date.now() - lastCall;
+        if (elapsed2 < intervalMs) {
+          await new Promise(r => setTimeout(r, intervalMs - elapsed2));
+        }
         lastCall = Date.now();
         const trailingResult = await fn(...savedArgs);
         for (const w of savedWaiters) w.resolve(trailingResult);
