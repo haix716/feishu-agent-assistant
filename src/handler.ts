@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { larkService } from './lark';
 import { streamClaude, ChatMessage, ChatContext } from './claude';
 import { config } from './config';
-import { pThrottle, validateFileSize } from './util';
+import { pThrottle, validateFileSize, sanitizeFileName } from './util';
 
 /** 每用户对话历史 */
 const conversations = new Map<string, ChatMessage[]>();
@@ -213,6 +213,58 @@ export async function handleMessage(
     }
   } finally {
     running.set(userId, false);
+  }
+}
+
+/**
+ * 处理音视频消息：下载文件 → 上传飞书云盘 → 回复链接
+ */
+export async function handleMediaMessage(
+  userId: string,
+  chatId: string,
+  chatType: string,
+  messageId: string,
+  fileName: string,
+  fileKey: string
+): Promise<void> {
+  console.log(`[${userId}] 收到音视频: ${fileName}`);
+
+  // 回复处理中
+  const replyMsg = chatType === 'group' && messageId
+    ? await larkService.replyCard(messageId, '正在保存音视频到云盘...')
+    : await larkService.sendCard(chatId, '正在保存音视频到云盘...');
+
+  try {
+    // 下载文件
+    const buffer = await larkService.getFileResource(messageId, fileKey);
+    if (!buffer) {
+      await larkService.updateCard(replyMsg, '文件下载失败');
+      return;
+    }
+
+    // 上传到飞书云盘
+    const folderToken = config.driveFolderToken;
+    if (!folderToken) {
+      await larkService.updateCard(replyMsg, '未配置云盘文件夹，请设置 DRIVE_FOLDER_TOKEN 环境变量');
+      return;
+    }
+
+    const safeName = sanitizeFileName(fileName);
+    const fileToken = await larkService.uploadFile(buffer, safeName, folderToken);
+
+    const link = `${config.lark.domain}/file/${fileToken}`;
+    await larkService.updateCard(
+      replyMsg,
+      `音视频已保存到云盘\n\n文件名：${safeName}\n[打开文件](${link})`
+    );
+  } catch (err) {
+    console.error(`[${userId}] 音视频保存失败:`, err);
+    const errMsg = `保存失败: ${err instanceof Error ? err.message : String(err)}`;
+    try {
+      await larkService.updateCard(replyMsg, errMsg);
+    } catch (updateErr) {
+      console.error(`[${userId}] 更新错误卡片失败:`, updateErr);
+    }
   }
 }
 

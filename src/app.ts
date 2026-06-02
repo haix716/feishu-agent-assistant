@@ -1,6 +1,6 @@
 import * as Lark from '@larksuiteoapi/node-sdk';
 import { larkService } from './lark';
-import { handleMessage, handleFileEvent, handleImageMessage } from './handler';
+import { handleMessage, handleFileEvent, handleImageMessage, handleMediaMessage } from './handler';
 
 console.log('🚀 Claude 飞书助手启动中...');
 
@@ -50,12 +50,28 @@ const eventDispatcher = new Lark.EventDispatcher({}).register({
           console.log(`[${chatType}] [${userId}] 🖼️ image`);
           await handleImageMessage(userId, chatId, chatType, messageId, imageKey);
 
+        } else if (messageType === 'audio' || messageType === 'video') {
+          // 音视频消息：下载并保存到云盘
+          let fileKey = '';
+          let fileName = '';
+          try {
+            const content = JSON.parse(event.message.content);
+            fileKey = content.file_key || '';
+            fileName = content.file_name || `${messageType}_${Date.now()}`;
+          } catch {
+            fileName = `${messageType}_${Date.now()}`;
+          }
+          console.log(`[${chatType}] [${userId}] 🎬 ${fileName}`);
+          if (fileKey) {
+            await handleMediaMessage(userId, chatId, chatType, messageId, fileName, fileKey);
+          }
+
         } else {
           // 其他类型
           if (chatType === 'group' && messageId) {
-            await larkService.replyText(messageId, '目前支持文本、图片和文件消息，请发送文字、图片或附件');
+            await larkService.replyText(messageId, '目前支持文本、图片、文件和音视频消息');
           } else {
-            await larkService.sendText(chatId, '目前支持文本、图片和文件消息，请发送文字、图片或附件');
+            await larkService.sendText(chatId, '目前支持文本、图片、文件和音视频消息');
           }
         }
       } catch (err) {
