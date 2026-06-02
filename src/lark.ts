@@ -143,7 +143,18 @@ class LarkService {
         path: { message_id: messageId, file_key: fileKey },
         params: { type },
       });
-      // SDK 返回的是文件流，需要转为 Buffer
+
+      // SDK 返回的是一个对象，包含 getReadableStream 方法
+      if (resp && typeof resp === 'object' && 'getReadableStream' in resp) {
+        const stream = (resp as any).getReadableStream();
+        const chunks: Buffer[] = [];
+        for await (const chunk of stream) {
+          chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+        }
+        return Buffer.concat(chunks);
+      }
+
+      // 兼容旧版 SDK：直接是 pipe 方法
       if (resp && typeof resp === 'object' && 'pipe' in resp) {
         const chunks: Buffer[] = [];
         for await (const chunk of resp as any) {
@@ -155,23 +166,6 @@ class LarkService {
       console.error('getResource failed:', err);
     }
     return null;
-  }
-
-  /** 上传文件到云盘，返回 file_token */
-  async uploadFile(buffer: Buffer, fileName: string, parentToken: string): Promise<string> {
-    const resp = await (this.client as any).drive.v1.file.uploadAll({
-      data: {
-        file_name: fileName,
-        parent_type: 'explorer',
-        parent_node: parentToken,
-        size: buffer.length,
-        file: buffer,
-      },
-    });
-    if (!resp?.file_token) {
-      throw new Error(`uploadFile failed: no file_token returned`);
-    }
-    return resp.file_token;
   }
 
   /** 创建导入任务，返回 ticket */
@@ -242,23 +236,6 @@ class LarkService {
     }
   }
 
-  /** 获取文档纯文本内容 */
-  async getDocContent(documentId: string): Promise<string | null> {
-    try {
-      const resp = await (this.client as any).docx.v1.document.rawContent({
-        path: { document_id: documentId },
-      });
-      if (resp.code !== 0) {
-        console.error('getDocContent failed:', resp.msg);
-        return null;
-      }
-      return resp.data?.content || null;
-    } catch (err) {
-      console.error('getDocContent failed:', err);
-      return null;
-    }
-  }
-
   /** 获取消息详情（用于获取文件信息） */
   async getMessage(messageId: string): Promise<any | null> {
     try {
@@ -276,7 +253,7 @@ class LarkService {
 
   /** 上传文件到飞书云盘，返回 file_token */
   async uploadFile(buffer: Buffer, fileName: string, parentToken: string): Promise<string> {
-    const resp = await this.client.drive.v1.file.uploadAll({
+    const resp = await (this.client as any).drive.v1.file.uploadAll({
       data: {
         file_name: fileName,
         parent_type: 'explorer',
@@ -285,10 +262,53 @@ class LarkService {
         file: buffer,
       },
     });
-    if (resp.code !== 0) {
-      throw new Error(`uploadFile failed: ${resp.msg}`);
+
+    // 响应格式可能是 { code, msg, data: { file_token } } 或直接 { file_token, url }
+    if (!resp) {
+      throw new Error('uploadFile failed: no response');
     }
-    return resp.data?.file_token || '';
+
+    // 直接返回 file_token（兼容两种响应格式）
+    const fileToken = resp.file_token || resp.data?.file_token;
+    if (!fileToken) {
+      throw new Error(`uploadFile failed: ${resp.msg || 'no file_token'}`);
+    }
+
+    return fileToken;
+  }
+
+  /** 创建文件夹，返回 folder_token */
+  async createFolder(name: string, parentToken?: string): Promise<string> {
+    const data: any = { name };
+    if (parentToken) {
+      data.folder_token = parentToken;
+    }
+
+    const resp = await (this.client as any).drive.v1.file.createFolder({ data });
+    if (!resp || resp.code !== 0) {
+      throw new Error(`createFolder failed: ${resp?.msg || 'no response'}`);
+    }
+    return resp.data?.token || '';
+  }
+
+  /** 获取根文件夹 token（通过列出根目录） */
+  async getRootFolder(): Promise<string> {
+    // 列出根目录文件，第一个文件的 parent_token 就是根文件夹 token
+    const resp = await (this.client as any).drive.v1.file.list({
+      params: { page_size: 1 },
+    });
+    if (!resp || resp.code !== 0) {
+      throw new Error(`getRootFolder failed: ${resp?.msg || 'no response'}`);
+    }
+
+    // 从第一个文件的 parent_token 获取根文件夹 token
+    const files = resp.data?.files || [];
+    if (files.length > 0 && files[0].parent_token) {
+      return files[0].parent_token;
+    }
+
+    // 如果没有文件，尝试获取根目录信息
+    throw new Error('无法获取根文件夹 token，请手动配置 DRIVE_FOLDER_TOKEN');
   }
 
   /** 获取云文档原始内容（docx 类型） */
@@ -337,7 +357,7 @@ class LarkService {
         console.error(`listFiles failed: ${resp.msg}`);
         return [];
       }
-      const files = resp.data?.items || [];
+      const files = (resp.data as any)?.items || (resp.data as any)?.files || [];
       return files.map((f: any) => ({
         name: f.name || '未知文件',
         type: f.type || 'file',

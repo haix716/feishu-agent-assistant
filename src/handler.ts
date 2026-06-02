@@ -10,6 +10,73 @@ const conversations = new Map<string, ChatMessage[]>();
 /** 每用户并发锁 */
 const running = new Map<string, boolean>();
 
+/** 每用户待保存的图片 */
+const pendingImages = new Map<string, { buffer: Buffer; fileName: string }>();
+
+/** 文件夹 token 缓存：key = "类型/日期", value = folder_token */
+const folderCache = new Map<string, string>();
+
+/** 根文件夹 token（启动时自动获取） */
+let rootFolderToken = '';
+
+/** 初始化根文件夹：自动创建"机器人文件"文件夹 */
+export async function initRootFolder(): Promise<void> {
+  try {
+    if (config.driveFolderToken) {
+      rootFolderToken = config.driveFolderToken;
+      console.log(`✅ 使用配置的根文件夹: ${rootFolderToken}`);
+      return;
+    }
+
+    // 尝试自动获取根文件夹并创建"机器人文件"
+    console.log('📁 尝试自动获取根文件夹...');
+    try {
+      const rootToken = await larkService.getRootFolder();
+      console.log('📁 根文件夹获取成功');
+
+      // 创建"机器人文件"文件夹
+      console.log('📁 创建"机器人文件"文件夹...');
+      rootFolderToken = await larkService.createFolder('机器人文件', rootToken);
+      console.log('✅ 机器人文件夹创建成功');
+    } catch (err: any) {
+      console.log(`⚠️ 自动创建文件夹失败: ${err.message}`);
+      console.log('   请在 .env 文件中设置 DRIVE_FOLDER_TOKEN（飞书云盘文件夹 token）');
+      console.log('   或者手动在飞书云盘创建"机器人文件"文件夹并复制其 token');
+    }
+  } catch (err) {
+    console.error('❌ 初始化根文件夹失败:', err);
+    throw err;
+  }
+}
+
+/** 获取或创建文件夹，返回 folder_token。path 如 "图片/2026-06-02" 或 "test/2026-06-02" */
+async function getOrCreateFolder(path: string): Promise<string> {
+  if (folderCache.has(path)) {
+    return folderCache.get(path)!;
+  }
+
+  if (!rootFolderToken) {
+    throw new Error('根文件夹未初始化，请先调用 initRootFolder()');
+  }
+
+  // 创建路径：{rootFolderToken}/{path}
+  const parts = path.split('/').filter(Boolean);
+  let currentToken = rootFolderToken;
+
+  for (const part of parts) {
+    currentToken = await larkService.createFolder(part, currentToken);
+  }
+
+  folderCache.set(path, currentToken);
+  return currentToken;
+}
+
+/** 获取今天的日期字符串 */
+function getTodayDate(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 /** 节流更新卡片（1000ms 间隔，避免飞书频率限制） */
 const throttledUpdate = pThrottle(
   async (messageId: string, content: string) => {
@@ -226,8 +293,103 @@ export async function handleMessage(
     return;
   }
 
-  // 群文件指令
-  if (query.trim() === '群文件') {
+  // 有待保存图片时，用 Claude 理解用户意图
+  if (typeof query === 'string' && pendingImages.has(userId)) {
+    const pending = pendingImages.get(userId)!;
+
+    // 用 Claude 理解用户意图
+    const intentPrompt = `用户刚收到一张图片（${(pending.buffer.length / 1024).toFixed(1)}KB），现在说："${query}"
+
+请解析用户的意图，返回 JSON 格式：
+{
+  "action": "save" | "discard" | "chat",
+  "folder": "文件夹路径（如 test、工作/项目A）",
+  "fileName": "文件名（不含扩展名）",
+  "reply": "给用户的回复（如果 action 是 chat）"
+}
+
+规则：
+- 如果用户说"保存"、"存到"、"放到"等，action 是 "save"
+- 如果用户说"不要了"、"删除"、"取消"，action 是 "discard"
+- 如果用户没提到保存相关，action 是 "chat"，正常回复
+- folder 默认是 "未整理"
+- fileName 默认是 "图片_${Date.now()}"
+- 只返回 JSON，不要其他内容`;
+
+    try {
+      const intentResult = await streamClaude(
+        [{ role: 'user', content: intentPrompt }],
+        () => {} // 不需要流式更新
+      );
+
+      // 解析 Claude 返回的 JSON
+      let intent: any;
+      try {
+        // 提取 JSON（可能被 markdown 包裹）
+        const jsonMatch = intentResult.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          intent = JSON.parse(jsonMatch[0]);
+        }
+      } catch {
+        intent = { action: 'chat', reply: intentResult };
+      }
+
+      if (intent.action === 'save') {
+        const folder = sanitizeFileName(intent.folder || '未整理');
+        const fileName = sanitizeFileName((intent.fileName || `image_${Date.now()}`) + '.jpg');
+
+        // 创建文件夹并保存
+        const today = getTodayDate();
+        const folderToken = await getOrCreateFolder(`${folder}/${today}`);
+        const fileToken = await larkService.uploadFile(pending.buffer, fileName, folderToken);
+        const url = `https://feishu.cn/file/${fileToken}`;
+
+        const msg = `🖼️ 图片已保存\n文件夹：${folder}/${today}\n文件：${fileName}\n${url}`;
+        pendingImages.delete(userId);
+        if (chatType === 'group' && messageId) {
+          await larkService.replyText(messageId, msg);
+        } else {
+          await larkService.sendText(chatId, msg);
+        }
+      } else if (intent.action === 'discard') {
+        pendingImages.delete(userId);
+        const msg = '已丢弃图片。';
+        if (chatType === 'group' && messageId) {
+          await larkService.replyText(messageId, msg);
+        } else {
+          await larkService.sendText(chatId, msg);
+        }
+      } else {
+        // action === 'chat'，正常对话
+        pendingImages.delete(userId);
+        await handleMessage(userId, chatId, query, chatType, messageId);
+      }
+    } catch (err) {
+      console.error('意图解析失败:', err);
+      // 回退到简单匹配
+      if (/保存|存|放/.test(query)) {
+        const today = getTodayDate();
+        const folderToken = await getOrCreateFolder(`未整理/${today}`);
+        const fileName = sanitizeFileName(`image_${Date.now()}.jpg`);
+        const fileToken = await larkService.uploadFile(pending.buffer, fileName, folderToken);
+        const url = `https://feishu.cn/file/${fileToken}`;
+        const msg = `🖼️ 图片已保存\n文件夹：未整理/${today}\n文件：${fileName}\n${url}`;
+        pendingImages.delete(userId);
+        if (chatType === 'group' && messageId) {
+          await larkService.replyText(messageId, msg);
+        } else {
+          await larkService.sendText(chatId, msg);
+        }
+      } else {
+        pendingImages.delete(userId);
+        await handleMessage(userId, chatId, query, chatType, messageId);
+      }
+    }
+    return;
+  }
+
+  // 群文件指令（仅文本消息）
+  if (typeof query === 'string' && query.trim() === '群文件') {
     const files = await larkService.listFiles();
     const text = formatFileList(files);
     if (chatType === 'group' && messageId) {
@@ -404,9 +566,21 @@ export async function handleImageMessage(
   messageId: string,
   imageKey: string
 ): Promise<void> {
-  console.log(`[${userId}] 收到图片: ${imageKey}`);
+  console.log(`[${userId}] 开始处理图片: ${imageKey}`);
+
+  // 检查是否已初始化云盘文件夹
+  if (!rootFolderToken) {
+    const msg = '⚠️ 云盘文件夹未初始化，无法保存图片。\n请稍后再试或联系管理员。';
+    if (chatType === 'group' && messageId) {
+      await larkService.replyText(messageId, msg);
+    } else {
+      await larkService.sendText(chatId, msg);
+    }
+    return;
+  }
 
   try {
+    console.log(`[${userId}] 下载图片中...`);
     const buffer = await larkService.getResource(messageId, imageKey, 'image');
     if (!buffer) {
       const fallback = '图片下载失败，请重新发送。';
@@ -418,26 +592,21 @@ export async function handleImageMessage(
       return;
     }
 
-    if (!validateFileSize(buffer, 22)) {
-      const fallback = '图片超过 22MB 限制，请压缩后重新发送。';
-      if (chatType === 'group' && messageId) {
-        await larkService.replyText(messageId, fallback);
-      } else {
-        await larkService.sendText(chatId, fallback);
-      }
-      return;
+    console.log(`[${userId}] 图片下载完成，大小: ${buffer.length} bytes`);
+
+    // 自动创建文件夹并保存
+    const today = getTodayDate();
+    const folderToken = await getOrCreateFolder(`图片/${today}`);
+    const fileName = sanitizeFileName(`image_${Date.now()}.jpg`);
+    const fileToken = await larkService.uploadFile(buffer, fileName, folderToken);
+    const url = `https://feishu.cn/file/${fileToken}`;
+
+    const msg = `🖼️ 图片已保存\n文件夹：机器人文件/图片/${today}\n文件：${fileName}\n大小：${(buffer.length / 1024).toFixed(1)}KB\n${url}`;
+    if (chatType === 'group' && messageId) {
+      await larkService.replyText(messageId, msg);
+    } else {
+      await larkService.sendText(chatId, msg);
     }
-
-    const base64 = buffer.toString('base64');
-    const content: Anthropic.ContentBlockParam[] = [
-      { type: 'text', text: '用户发送了一张图片：' } as Anthropic.TextBlockParam,
-      {
-        type: 'image',
-        source: { type: 'base64', media_type: 'image/jpeg', data: base64 },
-      } as Anthropic.ImageBlockParam,
-    ];
-
-    await handleMessage(userId, chatId, content, chatType, messageId);
   } catch (err) {
     console.error(`[${userId}] handleImageMessage failed:`, err);
     const errMsg = '图片处理出错，请重新发送。';

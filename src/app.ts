@@ -1,9 +1,14 @@
 import * as Lark from '@larksuiteoapi/node-sdk';
 import { larkService } from './lark';
-import { handleMessage, handleFileEvent, handleImageMessage, handleMediaMessage, handleBinaryFile } from './handler';
+import { handleMessage, handleFileEvent, handleImageMessage, handleMediaMessage, handleBinaryFile, initRootFolder } from './handler';
 import { getFileExtension, getImportTargetType } from './util';
 
 console.log('🚀 Claude 飞书助手启动中...');
+
+// 初始化根文件夹（自动创建"机器人文件"文件夹）
+initRootFolder().catch(err => {
+  console.error('❌ 初始化根文件夹失败，图片/视频保存功能将不可用:', err.message);
+});
 
 // 注册事件处理器
 const eventDispatcher = new Lark.EventDispatcher({}).register({

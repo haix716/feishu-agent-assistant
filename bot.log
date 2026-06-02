@@ -1,5 +1,6 @@
 [info]: [ 'client ready' ]
 🚀 Claude 飞书助手启动中...
+📁 尝试自动获取根文件夹...
 [info]: [ 'event-dispatch is ready' ]
 [info]: [
   '[ws]',
@@ -14,63 +15,12 @@
 ]
 ✅ WebSocket 长连接已建立，等待消息...
 [info]: [ '[ws]', 'ws client ready' ]
-[group] [ou_ef889a517fa60a9e8f314511d68084ca] @_user_1
-[group] [ou_ef889a517fa60a9e8f314511d68084ca] 在吗
-[ou_ef889a517fa60a9e8f314511d68084ca] 获取上下文...
-[ou_ef889a517fa60a9e8f314511d68084ca] 上下文: {
-  chatType: 'group',
-  chatName: '銀·华 SILK & STERLING团队',
-  userName: '黄晓燕'
-}
-[ou_ef889a517fa60a9e8f314511d68084ca] 发送回复卡片...
-[ou_ef889a517fa60a9e8f314511d68084ca] 卡片已发送: om_x100b6ed0047fa884c2f2263e63a7192
-[ou_ef889a517fa60a9e8f314511d68084ca] 调用 Claude API...
-[ou_ef889a517fa60a9e8f314511d68084ca] Claude 回复完成，长度: 16
-[group] [ou_ef889a517fa60a9e8f314511d68084ca] 在吗
-[ou_ef889a517fa60a9e8f314511d68084ca] 获取上下文...
-[ou_ef889a517fa60a9e8f314511d68084ca] 上下文: {
-  chatType: 'group',
-  chatName: '銀·华 SILK & STERLING团队',
-  userName: '黄晓燕'
-}
-[ou_ef889a517fa60a9e8f314511d68084ca] 发送回复卡片...
-[ou_ef889a517fa60a9e8f314511d68084ca] 卡片已发送: om_x100b6ed018c41880c2a6fd96af1e238
-[ou_ef889a517fa60a9e8f314511d68084ca] 调用 Claude API...
-[ou_ef889a517fa60a9e8f314511d68084ca] Claude 回复完成，长度: 13
-[group] [ou_ef889a517fa60a9e8f314511d68084ca] 📎 IMG_5525.MOV
-[ou_ef889a517fa60a9e8f314511d68084ca] 收到文件: IMG_5525.MOV
-[ou_ef889a517fa60a9e8f314511d68084ca] 获取上下文...
-[ou_ef889a517fa60a9e8f314511d68084ca] 上下文: {
-  chatType: 'group',
-  chatName: '銀·华 SILK & STERLING团队',
-  userName: '黄晓燕'
-}
-[ou_ef889a517fa60a9e8f314511d68084ca] 发送回复卡片...
-[ou_ef889a517fa60a9e8f314511d68084ca] 卡片已发送: om_x100b6ed0d832dc8cc24daaa369b9cfb
-[ou_ef889a517fa60a9e8f314511d68084ca] 调用 Claude API...
-[ou_ef889a517fa60a9e8f314511d68084ca] Claude 回复完成，长度: 54
-[group] [ou_ef889a517fa60a9e8f314511d68084ca] https://bytedance.larkoffice.com/docx/E37id3PDXoajBgx2a0Bcq25ZnKh
-[ou_ef889a517fa60a9e8f314511d68084ca] 获取上下文...
-[ou_ef889a517fa60a9e8f314511d68084ca] 上下文: {
-  chatType: 'group',
-  chatName: '銀·华 SILK & STERLING团队',
-  userName: '黄晓燕'
-}
-[ou_ef889a517fa60a9e8f314511d68084ca] 发送回复卡片...
-[ou_ef889a517fa60a9e8f314511d68084ca] 卡片已发送: om_x100b6ed0d62cbd10c368b0301f8db68
-[ou_ef889a517fa60a9e8f314511d68084ca] 调用 Claude API...
-[ou_ef889a517fa60a9e8f314511d68084ca] Claude 回复完成，长度: 86
-[group] [ou_ef889a517fa60a9e8f314511d68084ca] 📎 对标账号记录文档.xlsx
-[ou_ef889a517fa60a9e8f314511d68084ca] 收到文件: 对标账号记录文档.xlsx
-[ou_ef889a517fa60a9e8f314511d68084ca] 获取上下文...
-[ou_ef889a517fa60a9e8f314511d68084ca] 上下文: {
-  chatType: 'group',
-  chatName: '銀·华 SILK & STERLING团队',
-  userName: '黄晓燕'
-}
-[ou_ef889a517fa60a9e8f314511d68084ca] 发送回复卡片...
-[ou_ef889a517fa60a9e8f314511d68084ca] 卡片已发送: om_x100b6ed0ee3960a0c4c24cbf25f4a8a
-[ou_ef889a517fa60a9e8f314511d68084ca] 调用 Claude API...
-[ou_ef889a517fa60a9e8f314511d68084ca] Claude 回复完成，长度: 164
+📁 根文件夹 token: nodcnmRkp9G0PY1pCT7kQnTWnMe
+📁 创建"机器人文件"文件夹...
+✅ 机器人文件夹创建成功: Etvmfwktnlpomhda56zcxzndnae
 [info]: [ '[ws]', 'reconnect' ]
 [info]: [ '[ws]', 'reconnect' ]
+[group] [ou_ef889a517fa60a9e8f314511d68084ca] 🖼️ image
+[ou_ef889a517fa60a9e8f314511d68084ca] 开始处理图片: img_v3_02129_e6cd034a-ac92-41cd-8b74-66351d7390cg
+[ou_ef889a517fa60a9e8f314511d68084ca] 下载图片中...
+[ou_ef889a517fa60a9e8f314511d68084ca] 图片下载完成，大小: 180562 bytes
