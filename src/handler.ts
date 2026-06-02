@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { larkService } from './lark';
 import { streamClaude, ChatMessage, ChatContext } from './claude';
 import { config } from './config';
-import { pThrottle, validateFileSize, sanitizeFileName } from './util';
+import { pThrottle, validateFileSize, sanitizeFileName, getFileExtension, getImportTargetType } from './util';
 
 /** 每用户对话历史 */
 const conversations = new Map<string, ChatMessage[]>();
@@ -236,7 +236,7 @@ export async function handleMediaMessage(
 
   try {
     // 下载文件
-    const buffer = await larkService.getFileResource(messageId, fileKey);
+    const buffer = await larkService.getResource(messageId, fileKey, 'file');
     if (!buffer) {
       await larkService.updateCard(replyMsg, '文件下载失败');
       return;
@@ -342,6 +342,95 @@ export async function handleImageMessage(
       }
     } catch (sendErr) {
       console.error(`[${userId}] 发送错误消息也失败:`, sendErr);
+    }
+  }
+}
+
+/**
+ * 处理二进制文件（xlsx/docx 等）：通过飞书导入 API 转换后读取内容
+ */
+export async function handleBinaryFile(
+  userId: string,
+  chatId: string,
+  chatType: string,
+  messageId: string,
+  fileName: string
+): Promise<void> {
+  console.log(`[${userId}] 收到二进制文件: ${fileName}`);
+
+  const ext = getFileExtension(fileName);
+  const targetType = getImportTargetType(ext);
+  if (!targetType) {
+    await handleFileEvent(userId, chatId, chatType, messageId, fileName);
+    return;
+  }
+
+  const folderToken = config.driveFolderToken;
+  if (!folderToken) {
+    const msg = '未配置 DRIVE_FOLDER_TOKEN，无法导入文件。请在 .env 中设置。';
+    if (chatType === 'group' && messageId) {
+      await larkService.replyText(messageId, msg);
+    } else {
+      await larkService.sendText(chatId, msg);
+    }
+    return;
+  }
+
+  try {
+    // 1. 下载文件
+    const msg = await larkService.getMessage(messageId);
+    if (!msg?.items?.[0]?.content) throw new Error('无法获取文件信息');
+    const content = JSON.parse(msg.items[0].content);
+    const fileKey = content.file_key;
+    if (!fileKey) throw new Error('无法获取 file_key');
+
+    const buffer = await larkService.getResource(messageId, fileKey, 'file');
+    if (!buffer) throw new Error('下载文件失败');
+
+    // 2. 上传到云盘
+    const cleanName = sanitizeFileName(fileName);
+    console.log(`[${userId}] 上传文件到云盘: ${cleanName}`);
+    const fileToken = await larkService.uploadFile(buffer, cleanName, folderToken);
+
+    // 3. 创建导入任务
+    console.log(`[${userId}] 创建导入任务: ${ext} → ${targetType}`);
+    const ticket = await larkService.createImportTask(fileToken, ext, targetType, cleanName, folderToken);
+
+    // 4. 轮询结果（最多 30 秒，每 2 秒一次）
+    let importResult: { token: string; type: string } | null = null;
+    for (let i = 0; i < 15; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      importResult = await larkService.pollImportTask(ticket);
+      if (importResult) break;
+    }
+    if (!importResult) throw new Error('导入超时（30 秒）');
+
+    // 5. 读取内容
+    let fileContent = '';
+    if (importResult.type === 'sheet') {
+      const values = await larkService.getSheetValues(importResult.token, 'Sheet1!A1:Z200');
+      if (values) {
+        fileContent = values.map(row => row.join('\t')).join('\n');
+      }
+    } else {
+      const text = await larkService.getDocContent(importResult.token);
+      if (text) fileContent = text;
+    }
+
+    if (!fileContent) {
+      fileContent = `文件 "${fileName}" 导入成功但无法读取内容。`;
+    } else {
+      fileContent = `📎 文件 "${fileName}" 内容：\n\`\`\`\n${fileContent.slice(0, 10000)}\n\`\`\``;
+    }
+
+    await handleMessage(userId, chatId, fileContent, chatType, messageId);
+  } catch (err) {
+    console.error(`[${userId}] handleBinaryFile failed:`, err);
+    const errMsg = `处理文件 "${fileName}" 失败: ${err instanceof Error ? err.message : String(err)}`;
+    if (chatType === 'group' && messageId) {
+      await larkService.replyText(messageId, errMsg);
+    } else {
+      await larkService.sendText(chatId, errMsg);
     }
   }
 }

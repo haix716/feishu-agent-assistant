@@ -29,7 +29,8 @@
       "Bash(kill 15961)",
       "Bash(xargs kill)",
       "Bash(git tag *)",
-      "Bash(git remote *)"
+      "Bash(git remote *)",
+      "Bash(git rm *)"
     ]
   },
   "hooks": {

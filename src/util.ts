@@ -20,6 +20,23 @@ export function validateFileSize(buffer: Buffer, maxSizeMB: number): boolean {
 }
 
 /**
+ * 获取文件扩展名（小写，不含点号）
+ */
+export function getFileExtension(fileName: string): string {
+  const match = fileName.match(/\.([^.]+)$/);
+  return match ? match[1].toLowerCase() : '';
+}
+
+/**
+ * 根据扩展名返回飞书导入目标类型，不支持的返回 null
+ */
+export function getImportTargetType(ext: string): 'sheet' | 'docx' | null {
+  if (['xlsx', 'xls', 'csv'].includes(ext)) return 'sheet';
+  if (['docx', 'doc'].includes(ext)) return 'docx';
+  return null;
+}
+
+/**
  * 生成飞书卡片消息 JSON（schema 2.0，markdown 内容）
  */
 export function generateCard(content: string) {

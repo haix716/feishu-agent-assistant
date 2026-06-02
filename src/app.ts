@@ -1,6 +1,7 @@
 import * as Lark from '@larksuiteoapi/node-sdk';
 import { larkService } from './lark';
-import { handleMessage, handleFileEvent, handleImageMessage, handleMediaMessage } from './handler';
+import { handleMessage, handleFileEvent, handleImageMessage, handleMediaMessage, handleBinaryFile } from './handler';
+import { getFileExtension, getImportTargetType } from './util';
 
 console.log('🚀 Claude 飞书助手启动中...');
 
@@ -36,7 +37,15 @@ const eventDispatcher = new Lark.EventDispatcher({}).register({
             fileName = '未知文件';
           }
           console.log(`[${chatType}] [${userId}] 📎 ${fileName}`);
-          await handleFileEvent(userId, chatId, chatType, messageId, fileName);
+
+          const ext = getFileExtension(fileName);
+          if (getImportTargetType(ext)) {
+            // xlsx/xls/csv/docx/doc → 通过导入 API 转换后读取
+            await handleBinaryFile(userId, chatId, chatType, messageId, fileName);
+          } else {
+            // 其他文件走原有逻辑
+            await handleFileEvent(userId, chatId, chatType, messageId, fileName);
+          }
 
         } else if (messageType === 'image') {
           // 图片消息

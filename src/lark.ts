@@ -157,6 +157,108 @@ class LarkService {
     return null;
   }
 
+  /** 上传文件到云盘，返回 file_token */
+  async uploadFile(buffer: Buffer, fileName: string, parentToken: string): Promise<string> {
+    const resp = await (this.client as any).drive.v1.file.uploadAll({
+      data: {
+        file_name: fileName,
+        parent_type: 'explorer',
+        parent_node: parentToken,
+        size: buffer.length,
+        file: buffer,
+      },
+    });
+    if (!resp?.file_token) {
+      throw new Error(`uploadFile failed: no file_token returned`);
+    }
+    return resp.file_token;
+  }
+
+  /** 创建导入任务，返回 ticket */
+  async createImportTask(
+    fileToken: string,
+    fileExtension: string,
+    type: string,
+    fileName: string,
+    folderToken: string
+  ): Promise<string> {
+    const resp = await (this.client as any).drive.v1.importTask.create({
+      data: {
+        file_extension: fileExtension,
+        file_token: fileToken,
+        type,
+        file_name: fileName,
+        point: {
+          mount_type: 1,
+          mount_key: folderToken,
+        },
+      },
+    });
+    if (resp.code !== 0 || !resp.data?.ticket) {
+      throw new Error(`createImportTask failed: ${resp.msg}`);
+    }
+    return resp.data.ticket;
+  }
+
+  /** 轮询导入任务结果，返回 {token, type} 或 null */
+  async pollImportTask(ticket: string): Promise<{ token: string; type: string } | null> {
+    const resp = await (this.client as any).drive.v1.importTask.get({
+      path: { ticket },
+    });
+    if (resp.code !== 0) {
+      console.error('pollImportTask failed:', resp.msg);
+      return null;
+    }
+    const result = resp.data?.result;
+    if (!result) return null;
+    // job_status: 0=初始化, 1=处理中, 2=成功, 3=失败
+    if (result.job_status === 2 && result.token) {
+      return { token: result.token, type: result.type };
+    }
+    if (result.job_status === 3) {
+      throw new Error(`import task failed: ${result.job_error_msg}`);
+    }
+    return null; // still processing
+  }
+
+  /** 读取电子表格内容 */
+  async getSheetValues(spreadsheetToken: string, range: string): Promise<any[][] | null> {
+    try {
+      const resp = await (this.client as any).request({
+        method: 'GET',
+        url: `${config.lark.domain}/open-apis/sheets/v2/spreadsheets/${spreadsheetToken}/values/${range}`,
+        params: {
+          valueRenderOption: 'ToString',
+        },
+      });
+      if (resp.code !== 0) {
+        console.error('getSheetValues failed:', resp.msg);
+        return null;
+      }
+      return resp.data?.valueRange?.values || null;
+    } catch (err) {
+      console.error('getSheetValues failed:', err);
+      return null;
+    }
+  }
+
+  /** 获取文档纯文本内容 */
+  async getDocContent(documentId: string): Promise<string | null> {
+    try {
+      const resp = await (this.client as any).docx.v1.document.rawContent({
+        path: { document_id: documentId },
+      });
+      if (resp.code !== 0) {
+        console.error('getDocContent failed:', resp.msg);
+        return null;
+      }
+      return resp.data?.content || null;
+    } catch (err) {
+      console.error('getDocContent failed:', err);
+      return null;
+    }
+  }
+
   /** 获取消息详情（用于获取文件信息） */
   async getMessage(messageId: string): Promise<any | null> {
     try {
