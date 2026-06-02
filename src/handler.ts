@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { larkService } from './lark';
 import { streamClaude, ChatMessage, ChatContext } from './claude';
 import { config } from './config';
-import { pThrottle, validateFileSize, sanitizeFileName, getFileExtension, getImportTargetType } from './util';
+import { pThrottle, validateFileSize, sanitizeFileName, getFileExtension, getImportTargetType, extractFeishuDocLinks } from './util';
 
 /** 每用户对话历史 */
 const conversations = new Map<string, ChatMessage[]>();
@@ -26,6 +26,34 @@ const throttledUpdate = pThrottle(
   },
   1000
 );
+
+/**
+ * 从飞书文档链接获取内容
+ */
+async function fetchDocLinkContent(
+  type: string,
+  token: string
+): Promise<string | null> {
+  try {
+    if (type === 'docx' || type === 'doc') {
+      const content = await larkService.getDocContent(token);
+      if (content) {
+        return `📄 飞书文档内容（${type}）：\n${content.slice(0, 10000)}`;
+      }
+    } else if (type === 'wiki') {
+      const node = await larkService.getWikiNode(token);
+      if (node && node.obj_type === 'docx') {
+        const content = await larkService.getDocContent(node.obj_token);
+        if (content) {
+          return `📄 飞书知识库文档内容：\n${content.slice(0, 10000)}`;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('fetchDocLinkContent failed:', err);
+  }
+  return null;
+}
 
 /**
  * 清理群聊中的 @mention 占位符
@@ -126,6 +154,21 @@ export async function handleMessage(
   }
 
   if (!query || (Array.isArray(query) && query.length === 0)) return;
+
+  // 检测飞书文档链接，读取内容拼入消息（仅文本消息）
+  if (typeof query === 'string') {
+    const docLinks = extractFeishuDocLinks(query);
+    if (docLinks.length > 0) {
+      const docParts: string[] = [];
+      for (const link of docLinks) {
+        const content = await fetchDocLinkContent(link.type, link.token);
+        if (content) docParts.push(content);
+      }
+      if (docParts.length > 0) {
+        query = `${query}\n\n${docParts.join('\n\n')}`;
+      }
+    }
+  }
 
   // /clear 命令（仅文本消息）
   if (typeof query === 'string' && query.trim() === '/clear') {

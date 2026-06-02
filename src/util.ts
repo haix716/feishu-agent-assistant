@@ -37,6 +37,42 @@ export function getImportTargetType(ext: string): 'sheet' | 'docx' | null {
 }
 
 /**
+ * 飞书文档链接正则：匹配 feishu.cn 域名下的 docx/doc/wiki/sheets 链接
+ * 捕获组：(1) 文档类型, (2) token
+ */
+const FEISHU_DOC_RE =
+  /https?:\/\/[a-zA-Z0-9-]+\.feishu\.cn\/(docx|doc|wiki|sheets)\/([a-zA-Z0-9_-]+)(?:[?#][^\s]*)?/g;
+
+export interface FeishuDocLink {
+  type: string;
+  token: string;
+}
+
+/**
+ * 从文本中提取所有飞书文档链接
+ */
+export function extractFeishuDocLinks(text: string): FeishuDocLink[] {
+  const links: FeishuDocLink[] = [];
+  for (const match of text.matchAll(FEISHU_DOC_RE)) {
+    links.push({ type: match[1], token: match[2] });
+  }
+  return links;
+}
+
+/**
+ * 解析单个飞书文档 URL，返回类型和 token
+ */
+export function parseWikiToken(
+  url: string
+): { type: string; token: string } | null {
+  const match = url.match(
+    /https?:\/\/[a-zA-Z0-9-]+\.feishu\.cn\/(docx|doc|wiki|sheets)\/([a-zA-Z0-9_-]+)(?:[?#][^\s]*)?/
+  );
+  if (!match) return null;
+  return { type: match[1], token: match[2] };
+}
+
+/**
  * 生成飞书卡片消息 JSON（schema 2.0，markdown 内容）
  */
 export function generateCard(content: string) {

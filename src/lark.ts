@@ -290,6 +290,41 @@ class LarkService {
     }
     return resp.data?.file_token || '';
   }
+
+  /** 获取云文档原始内容（docx 类型） */
+  async getDocContent(documentId: string): Promise<string | null> {
+    try {
+      const resp = await (this.client as any).docx.document.rawContent({
+        path: { document_id: documentId },
+      });
+      if (resp.code === 0 && resp.data?.content) {
+        return resp.data.content;
+      }
+    } catch (err) {
+      console.error('getDocContent failed:', err);
+    }
+    return null;
+  }
+
+  /** 获取知识库节点信息（wiki 类型），返回 obj_token 和 obj_type */
+  async getWikiNode(
+    token: string
+  ): Promise<{ obj_token: string; obj_type: string } | null> {
+    try {
+      const resp = await (this.client as any).wiki.space.getNode({
+        params: { token },
+      });
+      if (resp.code === 0 && resp.data?.node) {
+        return {
+          obj_token: resp.data.node.obj_token,
+          obj_type: resp.data.node.obj_type,
+        };
+      }
+    } catch (err) {
+      console.error('getWikiNode failed:', err);
+    }
+    return null;
+  }
 }
 
 
