@@ -14,4 +14,5 @@ export const config = {
     model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
   },
   maxTurns: parseInt(process.env.MAX_TURNS || '20'),
+  driveFolderToken: process.env.DRIVE_FOLDER_TOKEN || '',
 };

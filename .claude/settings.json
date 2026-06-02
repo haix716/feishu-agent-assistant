@@ -1,0 +1,48 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npx prettier *)",
+      "Bash(npx tsx *)",
+      "Bash(npm test *)",
+      "Bash(git -C \"/Users/hxy/Documents/飞书机器人/claude-bot\" status)",
+      "Bash(git -C \"/Users/hxy/Documents/飞书机器人/claude-bot\" diff)",
+      "Bash(git -C \"/Users/hxy/Documents/飞书机器人/claude-bot\" diff --cached)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:blink.new)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:timewell.jp)",
+      "WebFetch(domain:groundy.com)",
+      "Bash(CLAUDE_CODE_SLOW_OPERATION_THRESHOLD_MS=1 CLAUDE_MODEL=mimo-v2.5-pro ANTHROPIC_BASE_URL=\"https://token-plan-cn.xiaomimimo.com/anthropic\" claude --print \"say hi\")",
+      "Bash(ANTHROPIC_BASE_URL=\"https://token-plan-cn.xiaomimimo.com/anthropic\" CLAUDE_MODEL=\"mimo-v2.5-pro\" claude --verbose --print \"say hi\" --output-format stream-json)",
+      "Bash(ANTHROPIC_BASE_URL=\"https://token-plan-cn.xiaomimimo.com/anthropic\" CLAUDE_MODEL=\"mimo-v2.5-pro\" claude --print \"say hi\" --output-format json)",
+      "Bash(gh run *)",
+      "Bash(gh issue *)",
+      "Bash(git branch *)",
+      "Bash(git checkout *)",
+      "Bash(gh workflow *)",
+      "Bash(git merge *)",
+      "Bash(gh pr *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(kill 15961)",
+      "Bash(xargs kill)",
+      "Bash(git tag *)",
+      "Bash(git remote *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx prettier --write $CLAUDE_FILE_PATHS 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -171,6 +171,24 @@ class LarkService {
     }
     return null;
   }
+
+  /** 上传文件到飞书云盘，返回 file_token */
+  async uploadFile(buffer: Buffer, fileName: string, parentToken: string): Promise<string> {
+    const resp = await this.client.drive.v1.file.uploadAll({
+      data: {
+        file_name: fileName,
+        parent_type: 'explorer',
+        parent_node: parentToken,
+        size: buffer.length,
+        file: buffer,
+      },
+    });
+    if (resp.code !== 0) {
+      throw new Error(`uploadFile failed: ${resp.msg}`);
+    }
+    return resp.data?.file_token || '';
+  }
 }
+
 
 export const larkService = new LarkService();

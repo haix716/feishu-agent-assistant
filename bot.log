@@ -1,0 +1,76 @@
+[info]: [ 'client ready' ]
+🚀 Claude 飞书助手启动中...
+[info]: [ 'event-dispatch is ready' ]
+[info]: [
+  '[ws]',
+  'receive events or callbacks through persistent connection only available in self-build & Feishu app, Configured in:\n' +
+    '        Developer Console(开发者后台)\n' +
+    '          ->\n' +
+    '        Events and Callbacks(事件与回调)\n' +
+    '          ->\n' +
+    '        Mode of event/callback subscription(订阅方式)\n' +
+    '          ->\n' +
+    '        Receive events/callbacks through persistent connection(使用 长连接 接收事件/回调)'
+]
+✅ WebSocket 长连接已建立，等待消息...
+[info]: [ '[ws]', 'ws client ready' ]
+[group] [ou_ef889a517fa60a9e8f314511d68084ca] @_user_1
+[group] [ou_ef889a517fa60a9e8f314511d68084ca] 在吗
+[ou_ef889a517fa60a9e8f314511d68084ca] 获取上下文...
+[ou_ef889a517fa60a9e8f314511d68084ca] 上下文: {
+  chatType: 'group',
+  chatName: '銀·华 SILK & STERLING团队',
+  userName: '黄晓燕'
+}
+[ou_ef889a517fa60a9e8f314511d68084ca] 发送回复卡片...
+[ou_ef889a517fa60a9e8f314511d68084ca] 卡片已发送: om_x100b6ed0047fa884c2f2263e63a7192
+[ou_ef889a517fa60a9e8f314511d68084ca] 调用 Claude API...
+[ou_ef889a517fa60a9e8f314511d68084ca] Claude 回复完成，长度: 16
+[group] [ou_ef889a517fa60a9e8f314511d68084ca] 在吗
+[ou_ef889a517fa60a9e8f314511d68084ca] 获取上下文...
+[ou_ef889a517fa60a9e8f314511d68084ca] 上下文: {
+  chatType: 'group',
+  chatName: '銀·华 SILK & STERLING团队',
+  userName: '黄晓燕'
+}
+[ou_ef889a517fa60a9e8f314511d68084ca] 发送回复卡片...
+[ou_ef889a517fa60a9e8f314511d68084ca] 卡片已发送: om_x100b6ed018c41880c2a6fd96af1e238
+[ou_ef889a517fa60a9e8f314511d68084ca] 调用 Claude API...
+[ou_ef889a517fa60a9e8f314511d68084ca] Claude 回复完成，长度: 13
+[group] [ou_ef889a517fa60a9e8f314511d68084ca] 📎 IMG_5525.MOV
+[ou_ef889a517fa60a9e8f314511d68084ca] 收到文件: IMG_5525.MOV
+[ou_ef889a517fa60a9e8f314511d68084ca] 获取上下文...
+[ou_ef889a517fa60a9e8f314511d68084ca] 上下文: {
+  chatType: 'group',
+  chatName: '銀·华 SILK & STERLING团队',
+  userName: '黄晓燕'
+}
+[ou_ef889a517fa60a9e8f314511d68084ca] 发送回复卡片...
+[ou_ef889a517fa60a9e8f314511d68084ca] 卡片已发送: om_x100b6ed0d832dc8cc24daaa369b9cfb
+[ou_ef889a517fa60a9e8f314511d68084ca] 调用 Claude API...
+[ou_ef889a517fa60a9e8f314511d68084ca] Claude 回复完成，长度: 54
+[group] [ou_ef889a517fa60a9e8f314511d68084ca] https://bytedance.larkoffice.com/docx/E37id3PDXoajBgx2a0Bcq25ZnKh
+[ou_ef889a517fa60a9e8f314511d68084ca] 获取上下文...
+[ou_ef889a517fa60a9e8f314511d68084ca] 上下文: {
+  chatType: 'group',
+  chatName: '銀·华 SILK & STERLING团队',
+  userName: '黄晓燕'
+}
+[ou_ef889a517fa60a9e8f314511d68084ca] 发送回复卡片...
+[ou_ef889a517fa60a9e8f314511d68084ca] 卡片已发送: om_x100b6ed0d62cbd10c368b0301f8db68
+[ou_ef889a517fa60a9e8f314511d68084ca] 调用 Claude API...
+[ou_ef889a517fa60a9e8f314511d68084ca] Claude 回复完成，长度: 86
+[group] [ou_ef889a517fa60a9e8f314511d68084ca] 📎 对标账号记录文档.xlsx
+[ou_ef889a517fa60a9e8f314511d68084ca] 收到文件: 对标账号记录文档.xlsx
+[ou_ef889a517fa60a9e8f314511d68084ca] 获取上下文...
+[ou_ef889a517fa60a9e8f314511d68084ca] 上下文: {
+  chatType: 'group',
+  chatName: '銀·华 SILK & STERLING团队',
+  userName: '黄晓燕'
+}
+[ou_ef889a517fa60a9e8f314511d68084ca] 发送回复卡片...
+[ou_ef889a517fa60a9e8f314511d68084ca] 卡片已发送: om_x100b6ed0ee3960a0c4c24cbf25f4a8a
+[ou_ef889a517fa60a9e8f314511d68084ca] 调用 Claude API...
+[ou_ef889a517fa60a9e8f314511d68084ca] Claude 回复完成，长度: 164
+[info]: [ '[ws]', 'reconnect' ]
+[info]: [ '[ws]', 'reconnect' ]
