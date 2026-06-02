@@ -1,6 +1,6 @@
 import { Client, WSClient } from '@larksuiteoapi/node-sdk';
 import { config } from './config';
-import { generateCard } from './util';
+import { generateCard, FileItem } from './util';
 
 class LarkService {
   client: Client;
@@ -322,6 +322,50 @@ class LarkService {
       }
     } catch (err) {
       console.error('getWikiNode failed:', err);
+    }
+    return null;
+  }
+
+  /** 列出群文件夹中的文件 */
+  async listFiles(folderToken?: string): Promise<FileItem[]> {
+    try {
+      const params: any = { page_size: 50 };
+      if (folderToken) params.folder_token = folderToken;
+
+      const resp = await this.client.drive.file.list({ params });
+      if (resp.code !== 0) {
+        console.error(`listFiles failed: ${resp.msg}`);
+        return [];
+      }
+      const files = resp.data?.items || [];
+      return files.map((f: any) => ({
+        name: f.name || '未知文件',
+        type: f.type || 'file',
+        size: f.size || 0,
+        url: f.url || '',
+        token: f.token || '',
+      }));
+    } catch (err) {
+      console.error('listFiles failed:', err);
+      return [];
+    }
+  }
+
+  /** 下载云空间文件，返回 Buffer */
+  async downloadFile(fileToken: string): Promise<Buffer | null> {
+    try {
+      const resp = await this.client.drive.file.download({
+        path: { file_token: fileToken },
+      });
+      if (resp && typeof resp === 'object' && 'pipe' in resp) {
+        const chunks: Buffer[] = [];
+        for await (const chunk of resp as any) {
+          chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+        }
+        return Buffer.concat(chunks);
+      }
+    } catch (err) {
+      console.error('downloadFile failed:', err);
     }
     return null;
   }

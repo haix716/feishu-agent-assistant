@@ -95,6 +95,50 @@ export function generateCard(content: string) {
   };
 }
 
+export interface FileItem {
+  name: string;
+  type: string;
+  size: number;
+  url: string;
+  token: string;
+}
+
+/**
+ * 格式化文件大小
+ */
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)}MB`;
+}
+
+/**
+ * 格式化文件列表为可读文本
+ */
+export function formatFileList(files: FileItem[]): string {
+  if (files.length === 0) return '当前群文件夹为空';
+
+  const shown = files.slice(0, 10);
+  const lines = shown.map((f, i) => `${i + 1}. ${f.name}（${formatSize(f.size)}）`);
+  let text = `共 ${files.length} 个文件：\n${lines.join('\n')}`;
+  if (files.length > 10) {
+    text += `\n... 等共 ${files.length} 个文件`;
+  }
+  return text;
+}
+
+/**
+ * 从消息中解析「读文件 xxx」指令，返回文件名；不匹配返回 null
+ */
+export function parseFileCommand(text: string): string | null {
+  // 去掉 @mention 前缀
+  const cleaned = text.replace(/@_user_\d+\s*/g, '').trim();
+  const match = cleaned.match(/^读文件\s*(.+)$/);
+  if (!match) return null;
+  const fileName = match[1].trim();
+  return fileName || null;
+}
+
 /**
  * 节流函数：限制函数调用频率，保证最后一次调用不被丢弃
  * trailing-edge 模式：pending 期间的新调用会被暂存，当前调用完成后执行最新的一次

@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { larkService } from './lark';
 import { streamClaude, ChatMessage, ChatContext } from './claude';
 import { config } from './config';
-import { pThrottle, validateFileSize, sanitizeFileName, getFileExtension, getImportTargetType, extractFeishuDocLinks } from './util';
+import { pThrottle, validateFileSize, sanitizeFileName, getFileExtension, getImportTargetType, extractFeishuDocLinks, formatFileList, parseFileCommand } from './util';
 
 /** 每用户对话历史 */
 const conversations = new Map<string, ChatMessage[]>();
@@ -139,6 +139,51 @@ async function handleFileMessage(
 }
 
 /**
+ * 处理「读文件 xxx」指令：查找文件、下载、读取内容
+ */
+async function handleReadFile(
+  userId: string,
+  chatId: string,
+  chatType: string,
+  messageId: string,
+  fileName: string
+): Promise<void> {
+  const reply = async (text: string) => {
+    if (chatType === 'group' && messageId) {
+      await larkService.replyText(messageId, text);
+    } else {
+      await larkService.sendText(chatId, text);
+    }
+  };
+
+  try {
+    const files = await larkService.listFiles();
+    const target = files.find((f) => f.name === fileName);
+    if (!target) {
+      await reply(`未找到文件「${fileName}」，请先发送「群文件」查看列表。`);
+      return;
+    }
+
+    const buffer = await larkService.downloadFile(target.token);
+    if (!buffer) {
+      await reply(`下载文件「${fileName}」失败，请稍后重试。`);
+      return;
+    }
+
+    // 文本类文件读取内容
+    if (/\.(txt|md|json|csv|xml|yaml|yml|log|py|js|ts|html|css|sh|sql)$/i.test(fileName)) {
+      const text = buffer.toString('utf-8').slice(0, 10000);
+      await reply(`📎 文件「${fileName}」内容：\n\`\`\`\n${text}\n\`\`\``);
+    } else {
+      await reply(`📎 文件「${fileName}」（${(buffer.length / 1024).toFixed(1)}KB），此文件类型暂不支持读取内容。`);
+    }
+  } catch (err) {
+    console.error(`[${userId}] handleReadFile failed:`, err);
+    await reply(`读取文件「${fileName}」时出错，请稍后重试。`);
+  }
+}
+
+/**
  * 处理用户消息
  */
 export async function handleMessage(
@@ -178,6 +223,25 @@ export async function handleMessage(
     } else {
       await larkService.sendText(chatId, '对话已清除 ✅');
     }
+    return;
+  }
+
+  // 群文件指令
+  if (query.trim() === '群文件') {
+    const files = await larkService.listFiles();
+    const text = formatFileList(files);
+    if (chatType === 'group' && messageId) {
+      await larkService.replyText(messageId, text);
+    } else {
+      await larkService.sendText(chatId, text);
+    }
+    return;
+  }
+
+  // 读文件指令（仅文本消息）
+  const fileName = typeof query === 'string' ? parseFileCommand(query) : null;
+  if (fileName) {
+    await handleReadFile(userId, chatId, chatType, messageId, fileName);
     return;
   }
 
