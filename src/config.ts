@@ -8,10 +8,10 @@ export const config = {
     appSecret: process.env.APP_SECRET || '',
     domain: process.env.LARK_DOMAIN || 'https://open.feishu.cn',
   },
-  claude: {
-    apiKey: process.env.ANTHROPIC_API_KEY || '',
-    baseURL: process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com',
-    model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
+  ai: {
+    apiKey: process.env.AI_API_KEY || process.env.ANTHROPIC_API_KEY || '',
+    baseURL: process.env.AI_BASE_URL || process.env.ANTHROPIC_BASE_URL || 'https://api.xiaomimimo.com/v1',
+    model: process.env.AI_MODEL || process.env.CLAUDE_MODEL || 'mimo-v2.5',
   },
   mimoImageModel: process.env.MIMO_IMAGE_MODEL || 'mimo-v2.5-omni',
   maxTurns: parseInt(process.env.MAX_TURNS || '20'),

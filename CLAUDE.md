@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Node.js >= 20 + TypeScript
 - `@larksuiteoapi/node-sdk` — 飞书 SDK（Channel SDK + Client）
-- `openai` — OpenAI 兼容 API（支持 MiMo / Claude）
+- `openai` — OpenAI 兼容 API（支持 MiMo 等模型）
 - `dotenv`
 - ESLint（`npx eslint src/`，0 error 才能 commit）
 
@@ -87,7 +87,7 @@ src/
 ### 工作流程
 1. PM 理解需求，拆分为独立任务
 2. PM 为每个任务写 task brief（目标、当前代码、改动要求、验收标准）
-3. 通过 `claude agents` 派发 developer agent 并行执行
+3. 通过 Agent 工具派发 developer agent 并行执行
 4. Developer 完成后，自动 hooks 验证（lint + test）
 5. PM review 代码，不合格打回
 6. 合并分支，更新文档

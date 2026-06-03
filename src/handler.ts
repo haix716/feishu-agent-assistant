@@ -289,11 +289,11 @@ export async function handleMessage(
     return;
   }
 
-  // 有待保存图片时，用 Claude 理解用户意图
+  // 有待保存图片时，用 AI 理解用户意图
   if (pendingImages.has(userId)) {
     const pending = pendingImages.get(userId)!;
 
-    // 用 Claude 理解用户意图
+    // 用 AI 理解用户意图
     const intentPrompt = `用户刚收到一张图片（${(pending.buffer.length / 1024).toFixed(1)}KB），现在说："${query}"
 
 请解析用户的意图，返回 JSON 格式：
@@ -318,7 +318,7 @@ export async function handleMessage(
         () => {} // 不需要流式更新
       );
 
-      // 解析 Claude 返回的 JSON
+      // 解析 AI 返回的 JSON
       let intent: any;
       try {
         // 提取 JSON（可能被 markdown 包裹）
@@ -506,12 +506,12 @@ async function handleFileEvent(
   const fileContext = await handleFileMessage(msg.messageId, fileName);
   const query = fileContext || `用户发送了文件 "${fileName}"，但无法读取内容。`;
 
-  // 把文件信息当作用户消息传给 Claude
+  // 把文件信息当作用户消息传给 AI
   await handleMessage(channel, { ...msg, content: query, resources: [] });
 }
 
 /**
- * 处理图片消息：下载图片，转 base64 传给 Claude
+ * 处理图片消息：下载图片，转 base64 传给 AI
  */
 async function handleImageMessage(
   channel: LarkChannel,

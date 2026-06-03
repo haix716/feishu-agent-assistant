@@ -1,4 +1,4 @@
-# Claude 飞书智能体 / Claude Feishu Agent
+# 飞书智能体助手 / Feishu Agent Assistant
 
 一个基于 Channel SDK 的飞书智能体助手，支持流式回复、多轮对话、卡片消息更新、多模态内容处理。
 
@@ -46,8 +46,8 @@ src/
 ### 1. 安装依赖 / Install
 
 ```bash
-git clone https://github.com/haix716/claude-feishu-agent.git
-cd claude-feishu-agent
+git clone https://github.com/haix716/feishu-agent-assistant.git
+cd feishu-agent-assistant
 npm install
 ```
 
@@ -123,7 +123,7 @@ After starting, find your agent in Feishu and send a message.
 | `LARK_DOMAIN` | | 飞书 API 域名 | `https://open.feishu.cn` |
 | `ANTHROPIC_API_KEY` | ✅ | AI API key | — |
 | `ANTHROPIC_BASE_URL` | | API 地址（OpenAI 兼容） | `https://api.anthropic.com` |
-| `CLAUDE_MODEL` | | 对话模型名 | `claude-sonnet-4-20250514` |
+| `CLAUDE_MODEL` | | 对话模型名 | `mimo-v2.5` |
 | `MIMO_IMAGE_MODEL` | | 图片分析模型 | `mimo-v2.5-omni` |
 | `MAX_TURNS` | | 对话历史最大轮数 | `20` |
 | `DRIVE_FOLDER_TOKEN` | | 云盘文件夹 token（不配置则自动创建） | — |
@@ -147,12 +147,12 @@ After starting, find your agent in Feishu and send a message.
 
 - **Runtime**: Node.js >= 20 + TypeScript
 - **飞书 SDK**: [@larksuiteoapi/node-sdk](https://github.com/larksuite/node-sdk)（Channel SDK + Client）
-- **AI SDK**: [openai](https://github.com/openai/openai-node)（OpenAI 兼容格式，支持 MiMo/Claude）
+- **AI SDK**: [openai](https://github.com/openai/openai-node)（OpenAI 兼容格式，支持 MiMo 等模型）
 - **测试**: Node.js 内置 test runner
 
 ## 开发方式 / Development Workflow
 
-采用 Git Worktree + Claude Subagent 并行开发：
+采用 Git Worktree + Subagent 并行开发：
 
 ```
 .claude/

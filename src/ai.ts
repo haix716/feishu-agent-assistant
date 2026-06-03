@@ -2,8 +2,8 @@ import OpenAI from 'openai';
 import { config } from './config';
 
 const openai = new OpenAI({
-  apiKey: config.claude.apiKey,
-  baseURL: config.claude.baseURL,
+  apiKey: config.ai.apiKey,
+  baseURL: config.ai.baseURL,
 });
 
 export interface ChatMessage {
@@ -37,7 +37,7 @@ export async function streamAI(
   ];
 
   const stream = await openai.chat.completions.create({
-    model: config.claude.model,
+    model: config.ai.model,
     messages: openaiMessages,
     stream: true,
     max_tokens: 4096,

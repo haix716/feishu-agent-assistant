@@ -4,14 +4,14 @@
 
 ### Added
 - **Channel SDK 集成**：使用 createLarkChannel 替换手动 WSClient + EventDispatcher
-- **OpenAI SDK 迁移**：从 Anthropic SDK 迁移到 OpenAI SDK（兼容 MiMo/Claude）
+- **OpenAI SDK 迁移**：从 Anthropic SDK 迁移到 OpenAI SDK（兼容 MiMo 等模型）
 - **图片理解功能**：新增 analyzeImage 函数，支持 MiMo-V2.5-Omni 多模态分析
 - **智能体应用支持**：支持通过 lark.registerApp() 一键创建飞书智能体应用
 - **多 Agent 并行开发**：3 个 Agent 并行开发（Channel SDK + SDK 迁移 + Config/Utils）
 - **Hooks 质量门禁**：PreToolUse 安全检查 + PostToolUse 自动 lint
 
 ### Changed
-- **项目重命名**：claude-feishu-bot → claude-feishu-agent
+- **项目重命名**：claude-feishu-bot → feishu-agent-assistant
 - **架构重构**：
   - app.ts：100 行 → 30 行（createLarkChannel 替换 EventDispatcher）
   - lark.ts：395 行 → 150 行（删除 5 个消息方法，保留文件操作）
@@ -67,12 +67,12 @@
 ## [1.0.0] - 2026-05-31
 
 ### Added
-- Claude API 流式回复 + 飞书卡片实时更新
+- AI API 流式回复 + 飞书卡片实时更新
 - 群聊支持：@mention 触发，reply 模式回复
 - 私聊支持：直接对话
 - 用户上下文：通过 tenant_access_token 获取群成员名称
 - 文件消息支持
 - 自定义 system prompt（支持环境变量注入）
-- `ANTHROPIC_BASE_URL` 支持第三方兼容 API（如 MiMo）
+- `AI_BASE_URL` 支持第三方兼容 API（如 MiMo）
 - ESLint 代码规范检查
 - README（中文 + 英文）
