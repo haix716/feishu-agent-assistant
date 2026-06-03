@@ -1,6 +1,6 @@
 import { Client, WSClient } from '@larksuiteoapi/node-sdk';
 import { config } from './config';
-import { generateCard, FileItem } from './util';
+import { FileItem } from './util';
 
 class LarkService {
   client: Client;
@@ -16,6 +16,27 @@ class LarkService {
     this.wsClient = new WSClient(opts);
   }
 
+  /** 生成飞书卡片消息 JSON（schema 2.0，markdown 内容） */
+  private buildCard(content: string) {
+    return {
+      schema: '2.0',
+      config: { update_multi: true, streaming_mode: false },
+      body: {
+        direction: 'vertical',
+        padding: '12px 12px 12px 12px',
+        elements: [
+          {
+            tag: 'markdown',
+            content,
+            text_align: 'left',
+            text_size: 'normal',
+            margin: '0px 0px 0px 0px',
+          },
+        ],
+      },
+    };
+  }
+
   /** 发送卡片消息，返回 messageId */
   async sendCard(chatId: string, content: string): Promise<string> {
     const resp = await this.client.im.message.create({
@@ -23,7 +44,7 @@ class LarkService {
       data: {
         receive_id: chatId,
         msg_type: 'interactive',
-        content: JSON.stringify(generateCard(content)),
+        content: JSON.stringify(this.buildCard(content)),
       },
     });
     if (resp.code !== 0) {
@@ -36,7 +57,7 @@ class LarkService {
   async updateCard(messageId: string, content: string): Promise<void> {
     const resp = await this.client.im.message.patch({
       path: { message_id: messageId },
-      data: { content: JSON.stringify(generateCard(content)) },
+      data: { content: JSON.stringify(this.buildCard(content)) },
     });
     if (resp.code !== 0) {
       console.error(`updateCard failed: ${resp.msg}`);
@@ -61,7 +82,7 @@ class LarkService {
       path: { message_id: messageId },
       data: {
         msg_type: 'interactive',
-        content: JSON.stringify(generateCard(content)),
+        content: JSON.stringify(this.buildCard(content)),
       },
     });
     if (resp.code !== 0) {
@@ -346,24 +367,24 @@ class LarkService {
     return null;
   }
 
-  /** 列出群文件夹中的文件 */
-  async listFiles(folderToken?: string): Promise<FileItem[]> {
+  /** 列出群文件（通过 IM 群文件 API） */
+  async listFiles(chatId: string): Promise<FileItem[]> {
     try {
-      const params: any = { page_size: 50 };
-      if (folderToken) params.folder_token = folderToken;
-
-      const resp = await this.client.drive.file.list({ params });
+      const resp = await (this.client as any).im.v1.chat.file.list({
+        path: { chat_id: chatId },
+        params: { page_size: 50 },
+      });
       if (resp.code !== 0) {
         console.error(`listFiles failed: ${resp.msg}`);
         return [];
       }
-      const files = (resp.data as any)?.items || (resp.data as any)?.files || [];
+      const files = (resp.data as any)?.items || [];
       return files.map((f: any) => ({
         name: f.name || '未知文件',
         type: f.type || 'file',
         size: f.size || 0,
         url: f.url || '',
-        token: f.token || '',
+        token: f.file_key || f.token || '',
       }));
     } catch (err) {
       console.error('listFiles failed:', err);

@@ -13,6 +13,7 @@ export const config = {
     baseURL: process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com',
     model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
   },
+  mimoImageModel: process.env.MIMO_IMAGE_MODEL || 'mimo-v2.5-omni',
   maxTurns: parseInt(process.env.MAX_TURNS || '20'),
   driveFolderToken: process.env.DRIVE_FOLDER_TOKEN || '',
 };

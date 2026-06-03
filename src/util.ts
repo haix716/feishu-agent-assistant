@@ -37,11 +37,12 @@ export function getImportTargetType(ext: string): 'sheet' | 'docx' | null {
 }
 
 /**
- * 飞书文档链接正则：匹配 feishu.cn 域名下的 docx/doc/wiki/sheets 链接
+ * 飞书文档链接正则：匹配 feishu.cn / larksuite.com 域名下的 docx/doc/wiki/sheets 链接
+ * 支持子域名（xxx.feishu.cn）和国际版（open.larksuite.com / xxx.larksuite.com）
  * 捕获组：(1) 文档类型, (2) token
  */
 const FEISHU_DOC_RE =
-  /https?:\/\/[a-zA-Z0-9-]+\.feishu\.cn\/(docx|doc|wiki|sheets)\/([a-zA-Z0-9_-]+)(?:[?#][^\s]*)?/g;
+  /https?:\/\/(?:[a-zA-Z0-9-]+\.)?(?:feishu\.cn|larksuite\.com)\/(docx|doc|wiki|sheets)\/([a-zA-Z0-9_-]+)(?:[?#][^\s]*)?/g;
 
 export interface FeishuDocLink {
   type: string;
@@ -66,33 +67,10 @@ export function parseWikiToken(
   url: string
 ): { type: string; token: string } | null {
   const match = url.match(
-    /https?:\/\/[a-zA-Z0-9-]+\.feishu\.cn\/(docx|doc|wiki|sheets)\/([a-zA-Z0-9_-]+)(?:[?#][^\s]*)?/
+    /https?:\/\/(?:[a-zA-Z0-9-]+\.)?(?:feishu\.cn|larksuite\.com)\/(docx|doc|wiki|sheets)\/([a-zA-Z0-9_-]+)(?:[?#][^\s]*)?/
   );
   if (!match) return null;
   return { type: match[1], token: match[2] };
-}
-
-/**
- * 生成飞书卡片消息 JSON（schema 2.0，markdown 内容）
- */
-export function generateCard(content: string) {
-  return {
-    schema: '2.0',
-    config: { update_multi: true, streaming_mode: false },
-    body: {
-      direction: 'vertical',
-      padding: '12px 12px 12px 12px',
-      elements: [
-        {
-          tag: 'markdown',
-          content,
-          text_align: 'left',
-          text_size: 'normal',
-          margin: '0px 0px 0px 0px',
-        },
-      ],
-    },
-  };
 }
 
 export interface FileItem {
