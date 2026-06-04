@@ -72,6 +72,11 @@ A Feishu/Lark intelligent agent powered by Channel SDK, with streaming responses
 - 📝 自动创建飞书待办事项（每天首次保存图片时）
 - 🧠 AI 内容识别：自动生成图片描述和文件名
 
+### RAG 搜索（v2.3 新增）
+- 🔍 本地图片搜索（"搜xxx"指令）
+- 📊 多策略匹配：文件名、描述、标签
+- 📁 结果展示：文件名 + 相对路径
+
 ### 工作流能力（规划中）
 - 🎨 图片生成：GPT-IMG-2 / Seedream
 - 🎬 视频制作：TapNow / 剪映 MCP
