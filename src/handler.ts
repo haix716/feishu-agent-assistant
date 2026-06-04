@@ -286,6 +286,11 @@ export async function handleMessage(
   const videoResource = msg.resources.find((r) => r.type === 'video');
   const fileResource = msg.resources.find((r) => r.type === 'file');
 
+  console.log(`[${userId}] 资源类型: image=${!!imageResource}, audio=${!!audioResource}, video=${!!videoResource}, file=${!!fileResource}`);
+  if (fileResource) {
+    console.log(`[${userId}] 文件名: ${fileResource.fileName}`);
+  }
+
   if (imageResource) {
     await handleImageMessage(channel, msg, imageResource.fileKey);
     return;
@@ -519,7 +524,7 @@ async function handleMediaMessage(
 }
 
 /**
- * 处理文件消息（从 app.ts 调用）
+ * 处理文件消息：下载文件 → 保存到本地
  */
 async function handleFileEvent(
   channel: LarkChannel,
@@ -527,13 +532,71 @@ async function handleFileEvent(
   fileName: string
 ): Promise<void> {
   const userId = msg.senderId;
+  const chatId = msg.chatId;
   console.log(`[${userId}] 收到文件: ${fileName}`);
 
-  const fileContext = await handleFileMessage(msg.messageId, fileName);
-  const query = fileContext || `用户发送了文件 "${fileName}"，但无法读取内容。`;
+  try {
+    // 1. 获取文件 key（从资源列表中）
+    const fileResource = msg.resources.find((r) => r.type === 'file');
+    if (!fileResource) {
+      await channel.send(chatId, { text: '❌ 无法获取文件资源' }, { replyTo: msg.messageId });
+      return;
+    }
+    const fileKey = fileResource.fileKey;
+    console.log(`[${userId}] 文件 key: ${fileKey}`);
 
-  // 把文件信息当作用户消息传给 AI
-  await handleMessage(channel, { ...msg, content: query, resources: [] });
+    // 2. 下载文件
+    console.log(`[${userId}] 下载文件中...`);
+    let buffer: Buffer | null;
+    try {
+      buffer = await larkService.getResource(msg.messageId, fileKey, 'file');
+    } catch (downloadErr) {
+      const errMsg = downloadErr instanceof Error ? downloadErr.message : String(downloadErr);
+      console.error(`[${userId}] 文件下载异常:`, errMsg);
+      await channel.send(chatId, { text: `❌ 文件下载失败：${errMsg}` }, { replyTo: msg.messageId });
+      return;
+    }
+    if (!buffer) {
+      await channel.send(chatId, { text: '❌ 文件下载失败' }, { replyTo: msg.messageId });
+      return;
+    }
+    console.log(`[${userId}] 文件下载完成，大小: ${buffer.length} bytes`);
+
+    // 3. 保存到本地
+    const today = getTodayDate();
+    const dateFolder = today.replace(/-/g, '');
+    const localDir = path.join(config.imageSaveDir, dateFolder);
+
+    if (!fs.existsSync(localDir)) {
+      fs.mkdirSync(localDir, { recursive: true });
+    }
+
+    const safeName = sanitizeFileName(fileName);
+    const filePath = path.join(localDir, safeName);
+
+    try {
+      fs.writeFileSync(filePath, buffer);
+      console.log(`[${userId}] 文件已保存到本地: ${filePath}`);
+    } catch (saveErr) {
+      const errMsg = saveErr instanceof Error ? saveErr.message : String(saveErr);
+      console.error(`[${userId}] 保存文件失败:`, errMsg);
+      await channel.send(chatId, { text: `❌ 文件保存失败：${errMsg}` }, { replyTo: msg.messageId });
+      return;
+    }
+
+    // 4. 回复用户
+    await channel.send(chatId, {
+      text: `✅ 文件已保存\n📁 位置：${dateFolder}/${safeName}`,
+    }, { replyTo: msg.messageId });
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[${userId}] handleFileEvent 未知错误:`, errMsg);
+    try {
+      await channel.send(chatId, { text: `❌ 文件处理出错：${errMsg}` }, { replyTo: msg.messageId });
+    } catch (sendErr) {
+      console.error(`[${userId}] 发送错误消息也失败:`, sendErr);
+    }
+  }
 }
 
 /**
