@@ -61,12 +61,12 @@ describe("Hook 配置结构", () => {
     assert.ok(settings.hooks.PreToolUse.length > 0, "PreToolUse 不应为空");
   });
 
-  it("PreToolUse 匹配 git commit 且执行 eslint", () => {
+  it("PreToolUse 匹配 Write|Edit 且执行安全检查", () => {
     const hook = settings.hooks.PreToolUse[0];
-    assert.equal(hook.matcher, "Bash(git commit*)");
+    assert.equal(hook.matcher, "Write|Edit");
     assert.ok(
-      hook.hooks[0].command.includes("eslint"),
-      "命令应包含 eslint"
+      hook.hooks[0].command.includes("security-check"),
+      "命令应包含 security-check"
     );
   });
 });

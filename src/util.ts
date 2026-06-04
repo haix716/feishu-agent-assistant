@@ -2,14 +2,26 @@
  * 清洗文件名：移除路径穿越、特殊字符，防止安全问题
  */
 export function sanitizeFileName(name: string): string {
-  if (!name || !name.trim()) return 'unnamed';
-  return name
+  if (!name || !name.trim()) return 'untitled';
+
+  let fileName = name
     .replace(/\.\./g, '')           // 移除 ..
     .replace(/[/\\]/g, '_')         // 路径分隔符 → 下划线
-    .replace(/[<>:"|?*!@#]/g, '_')  // 特殊字符 → 下划线
+    .replace(/[<>:"|?*!@#$()]/g, '_')  // 特殊字符 → 下划线
     .replace(/\s+/g, '_')           // 空白 → 下划线
     .replace(/_+/g, '_')            // 合并连续下划线
-    .replace(/^_+|_+$/g, '') || 'unnamed';  // 去首尾下划线，空则 fallback
+    .replace(/^_+|_+$/g, '');       // 去首尾下划线
+
+  if (!fileName || fileName === '.') return 'untitled';
+
+  // 截断超长文件名（保留扩展名）
+  if (fileName.length > 255) {
+    const ext = getFileExtension(fileName);
+    const maxNameLength = 255 - (ext ? ext.length + 1 : 0);
+    fileName = fileName.substring(0, maxNameLength) + (ext ? `.${ext}` : '');
+  }
+
+  return fileName;
 }
 
 /**

@@ -16,9 +16,9 @@ describe('sanitizeFileName', () => {
   });
 
   it('should handle empty or whitespace-only input', () => {
-    assert.equal(sanitizeFileName(''), 'unnamed');
-    assert.equal(sanitizeFileName('   '), 'unnamed');
-    assert.equal(sanitizeFileName('\t\n'), 'unnamed');
+    assert.equal(sanitizeFileName(''), 'untitled');
+    assert.equal(sanitizeFileName('   '), 'untitled');
+    assert.equal(sanitizeFileName('\t\n'), 'untitled');
   });
 
   it('should collapse consecutive underscores', () => {

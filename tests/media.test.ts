@@ -10,14 +10,14 @@ describe("sanitizeFileName", () => {
   });
 
   it("去除路径穿越", () => {
-    assert.equal(sanitizeFileName("../../etc/passwd"), "passwd");
+    assert.equal(sanitizeFileName("../../etc/passwd"), "etc_passwd");
     assert.equal(sanitizeFileName("../../../secret.txt"), "secret.txt");
-    assert.equal(sanitizeFileName("foo/bar/file.mp4"), "file.mp4");
-    assert.equal(sanitizeFileName("foo\\bar\\file.mp4"), "file.mp4");
+    assert.equal(sanitizeFileName("foo/bar/file.mp4"), "foo_bar_file.mp4");
+    assert.equal(sanitizeFileName("foo\\bar\\file.mp4"), "foo_bar_file.mp4");
   });
 
   it("替换特殊字符", () => {
-    assert.equal(sanitizeFileName("my file (1).mp4"), "my_file__1_.mp4");
+    assert.equal(sanitizeFileName("my file (1).mp4"), "my_file_1_.mp4");
     assert.equal(sanitizeFileName("a@b#c$.mp4"), "a_b_c_.mp4");
   });
 

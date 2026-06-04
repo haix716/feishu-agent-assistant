@@ -1,5 +1,5 @@
 import { larkService } from './lark';
-import { streamAI, streamAIWithTools, ChatMessage, ChatContext } from './ai';
+import { streamAI, streamAIWithTools, analyzeImage, ChatMessage, ChatContext } from './ai';
 import { config } from './config';
 import { validateFileSize, sanitizeFileName, getFileExtension, getImportTargetType, extractFeishuDocLinks, formatFileList, parseFileCommand } from './util';
 import { ToolManager, GetTimeTool, SearchDocTool } from './tools';
@@ -24,6 +24,12 @@ const folderCache = new Map<string, string>();
 
 /** 根文件夹 token（启动时自动获取） */
 let rootFolderToken = '';
+
+/** 图片序号计数器（每天重置） */
+let imageSequenceCounter = 1;
+
+/** 用户待办记录：key = "userId:date", value = 是否已创建待办 */
+const userTodoRecords = new Map<string, string>(); // 存储 todo_id
 
 /** 初始化根文件夹：自动创建"智能体文件"文件夹 */
 export async function initRootFolder(): Promise<void> {
@@ -506,23 +512,51 @@ async function handleImageMessage(
   }
 
   try {
+    // 1. 下载图片
     console.log(`[${userId}] 下载图片中...`);
     const buffer = await larkService.getResource(msg.messageId, imageKey, 'image');
     if (!buffer) {
       await channel.send(chatId, { text: '图片下载失败，请重新发送。' }, { replyTo: msg.messageId });
       return;
     }
-
     console.log(`[${userId}] 图片下载完成，大小: ${buffer.length} bytes`);
 
-    // 自动创建文件夹并保存
-    const today = getTodayDate();
-    const folderToken = await getOrCreateFolder(`图片/${today}`);
-    const fileName = sanitizeFileName(`image_${Date.now()}.jpg`);
+    // 2. 分析图片内容
+    let imageDescription = '图片';
+    try {
+      const base64Image = buffer.toString('base64');
+      imageDescription = await analyzeImage(base64Image);
+      console.log(`[${userId}] 图片识别完成: ${imageDescription}`);
+    } catch (analyzeErr) {
+      console.warn(`[${userId}] 图片识别失败:`, analyzeErr);
+    }
+
+    // 3. 创建/使用今天的文件夹：{yyyyMMdd}(待处理)
+    const today = getTodayDate(); // 格式：2026-06-04
+    const folderName = `${today.replace(/-/g, '')}(待处理)`; // 格式：20260604(待处理)
+    const folderToken = await getOrCreateFolder(folderName);
+
+    // 4. 生成文件名：{YYYYMMddHHmmss}_{序号}_{内容摘要}.{ext}
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+    const sequence = String(imageSequenceCounter++).padStart(2, '0');
+    const contentSummary = sanitizeFileName(imageDescription.substring(0, 12));
+    const fileName = `${timestamp}_${sequence}_${contentSummary}.jpg`;
+
+    // 5. 上传图片
     const fileToken = await larkService.uploadFile(buffer, fileName, folderToken);
     const url = `https://feishu.cn/file/${fileToken}`;
 
-    const replyMsg = `🖼️ 图片已保存\n文件夹：智能体文件/图片/${today}\n文件：${fileName}\n大小：${(buffer.length / 1024).toFixed(1)}KB\n${url}`;
+    // 6. 检查用户今天是否有待办，没有则创建
+    await createTodoIfNeeded(userId, today);
+
+    // 7. 回复用户
+    const replyMsg = [
+      `✅ 图片已保存`,
+      `📝 内容：${imageDescription}`,
+      `📁 位置：${folderName}/${fileName}`,
+      `🔗 链接：${url}`,
+    ].join('\n');
     await channel.send(chatId, { text: replyMsg }, { replyTo: msg.messageId });
   } catch (err) {
     console.error(`[${userId}] handleImageMessage failed:`, err);

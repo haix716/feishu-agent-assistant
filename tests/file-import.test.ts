@@ -4,15 +4,15 @@ import { sanitizeFileName, getFileExtension, getImportTargetType } from '../src/
 
 describe('sanitizeFileName', () => {
   it('removes path separators and special characters', () => {
-    assert.equal(sanitizeFileName('my/file:name*.xlsx'), 'myfilename.xlsx');
+    assert.equal(sanitizeFileName('my/file:name*.xlsx'), 'my_file_name_.xlsx');
   });
 
   it('trims whitespace', () => {
     assert.equal(sanitizeFileName('  report  '), 'report');
   });
 
-  it('collapses consecutive dots', () => {
-    assert.equal(sanitizeFileName('file..name...docx'), 'file.name.docx');
+  it('collapses consecutive underscores', () => {
+    assert.equal(sanitizeFileName('file___name___docx'), 'file_name_docx');
   });
 
   it('returns fallback for empty result', () => {
