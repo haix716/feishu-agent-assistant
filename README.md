@@ -17,15 +17,16 @@ A Feishu/Lark intelligent agent powered by Channel SDK, with streaming responses
 - 🔒 并发控制，同一用户同时只处理一条消息
 
 ### 多模态功能
-- 🖼️ 图片自动保存到飞书云盘 + AI 内容分析
-- 🎵 音视频自动保存到飞书云盘
+- 🖼️ 图片自动保存到本地 + AI 内容识别（MiMo 模型）
+- 🎵 音视频自动保存到本地
 - 📄 二进制文件导入（xlsx/docx → 飞书文档，可读取内容）
 - 🔗 飞书云文档链接自动解析（支持 docx/doc/wiki/sheets/base）
 - 📁 群文件浏览与读取（「群文件」/「读文件 xxx」指令）
 
 ### 智能文件管理
-- 📂 自动创建「智能体文件」文件夹结构（图片/音视频/文件 + 日期子目录）
-- 🧠 AI 意图理解：发图片后说「保存到 xxx」自动归档
+- 📂 自动创建日期文件夹结构（`{IMAGE_SAVE_DIR}/{YYYYMMDD}/`）
+- 📝 自动创建飞书待办事项（每天首次保存图片时）
+- 🧠 AI 内容识别：自动生成图片描述和文件名
 
 ---
 
@@ -121,12 +122,12 @@ After starting, find your agent in Feishu and send a message.
 | `APP_ID` | ✅ | 飞书应用 ID | — |
 | `APP_SECRET` | ✅ | 飞书应用密钥 | — |
 | `LARK_DOMAIN` | | 飞书 API 域名 | `https://open.feishu.cn` |
-| `ANTHROPIC_API_KEY` | ✅ | AI API key | — |
-| `ANTHROPIC_BASE_URL` | | API 地址（OpenAI 兼容） | `https://api.anthropic.com` |
-| `CLAUDE_MODEL` | | 对话模型名 | `mimo-v2.5` |
-| `MIMO_IMAGE_MODEL` | | 图片分析模型 | `mimo-v2.5-omni` |
+| `AI_API_KEY` | ✅ | AI API key | — |
+| `AI_BASE_URL` | | API 地址（OpenAI 兼容） | `https://api.xiaomimimo.com/v1` |
+| `AI_MODEL` | | 对话模型名 | `mimo-v2.5` |
+| `MIMO_IMAGE_MODEL` | | 图片分析模型 | `mimo-v2-omni` |
+| `IMAGE_SAVE_DIR` | | 图片/视频保存目录 | `./images` |
 | `MAX_TURNS` | | 对话历史最大轮数 | `20` |
-| `DRIVE_FOLDER_TOKEN` | | 云盘文件夹 token（不配置则自动创建） | — |
 | `NO_PROXY` | | 绕过代理的域名 | — |
 
 ## 使用方式 / Usage
@@ -135,13 +136,12 @@ After starting, find your agent in Feishu and send a message.
 |------|------|
 | 发送任意文本 | 与 AI 对话 |
 | `/clear` | 清空对话历史 |
-| 发送图片 | 自动保存到云盘 + AI 分析内容 |
-| 发送音视频 | 自动保存到云盘 |
+| 发送图片 | 自动保存到本地 + AI 识别内容 |
+| 发送音视频 | 自动保存到本地 |
 | 发送文件 (txt/pdf/docx/xlsx) | 读取内容并对话 |
 | 粘贴飞书文档链接 | 自动读取文档内容 |
 | `群文件` | 列出群聊文件 |
 | `读文件 xxx` | 读取指定文件内容 |
-| `保存到 xxx` | 保存待处理的图片到指定文件夹 |
 
 ## 技术栈 / Tech Stack
 

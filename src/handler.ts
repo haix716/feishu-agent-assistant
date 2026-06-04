@@ -443,7 +443,7 @@ export async function handleMessage(
 }
 
 /**
- * 处理音视频消息：下载文件 → 上传飞书云盘 → 回复链接
+ * 处理音视频消息：下载文件 → 保存到本地
  */
 async function handleMediaMessage(
   channel: LarkChannel,
@@ -452,39 +452,68 @@ async function handleMediaMessage(
   fileKey: string
 ): Promise<void> {
   const userId = msg.senderId;
+  const chatId = msg.chatId;
   console.log(`[${userId}] 收到音视频: ${fileName}`);
 
-  // 回复处理中
-  await channel.send(msg.chatId, { text: '正在保存音视频到云盘...' }, { replyTo: msg.messageId });
-
   try {
-    // 下载文件
-    const buffer = await larkService.getResource(msg.messageId, fileKey, 'file');
-    if (!buffer) {
-      await channel.send(msg.chatId, { text: '文件下载失败' }, { replyTo: msg.messageId });
+    // 1. 下载文件
+    console.log(`[${userId}] 下载音视频中...`);
+    let buffer: Buffer | null;
+    try {
+      buffer = await larkService.getResource(msg.messageId, fileKey, 'file');
+    } catch (downloadErr) {
+      const errMsg = downloadErr instanceof Error ? downloadErr.message : String(downloadErr);
+      console.error(`[${userId}] 音视频下载异常:`, errMsg);
+      await channel.send(chatId, {
+        text: `❌ 音视频下载失败\n原因：${errMsg}\n请重新发送。`,
+      }, { replyTo: msg.messageId });
       return;
     }
-
-    // 上传到飞书云盘
-    if (!rootFolderToken) {
-      await channel.send(msg.chatId, { text: '未配置云盘文件夹，请设置 DRIVE_FOLDER_TOKEN 环境变量' }, { replyTo: msg.messageId });
+    if (!buffer) {
+      await channel.send(chatId, {
+        text: '❌ 音视频下载失败\n原因：返回数据为空\n请重新发送。',
+      }, { replyTo: msg.messageId });
       return;
+    }
+    console.log(`[${userId}] 音视频下载完成，大小: ${buffer.length} bytes`);
+
+    // 2. 保存到本地文件夹
+    const today = getTodayDate();
+    const dateFolder = today.replace(/-/g, '');
+    const localDir = path.join(config.imageSaveDir, dateFolder);
+
+    if (!fs.existsSync(localDir)) {
+      fs.mkdirSync(localDir, { recursive: true });
     }
 
     const safeName = sanitizeFileName(fileName);
-    const fileToken = await larkService.uploadFile(buffer, safeName, rootFolderToken);
+    const filePath = path.join(localDir, safeName);
 
-    const link = `${config.lark.domain}/file/${fileToken}`;
-    await channel.send(msg.chatId, {
-      text: `音视频已保存到云盘\n\n文件名：${safeName}\n[打开文件](${link})`,
+    try {
+      fs.writeFileSync(filePath, buffer);
+      console.log(`[${userId}] 音视频已保存到本地: ${filePath}`);
+    } catch (saveErr) {
+      const errMsg = saveErr instanceof Error ? saveErr.message : String(saveErr);
+      console.error(`[${userId}] 保存音视频失败:`, errMsg);
+      await channel.send(chatId, {
+        text: `❌ 音视频保存失败\n文件：${safeName}\n原因：${errMsg}`,
+      }, { replyTo: msg.messageId });
+      return;
+    }
+
+    // 3. 回复用户
+    await channel.send(chatId, {
+      text: `✅ 音视频已保存\n📁 位置：${dateFolder}/${safeName}`,
     }, { replyTo: msg.messageId });
   } catch (err) {
-    console.error(`[${userId}] 音视频保存失败:`, err);
-    const errMsg = `保存失败: ${err instanceof Error ? err.message : String(err)}`;
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[${userId}] handleMediaMessage 未知错误:`, errMsg);
     try {
-      await channel.send(msg.chatId, { text: errMsg }, { replyTo: msg.messageId });
+      await channel.send(chatId, {
+        text: `❌ 音视频处理出错\n原因：${errMsg}\n请重新发送。`,
+      }, { replyTo: msg.messageId });
     } catch (sendErr) {
-      console.error(`[${userId}] 发送错误消息失败:`, sendErr);
+      console.error(`[${userId}] 发送错误消息也失败:`, sendErr);
     }
   }
 }
