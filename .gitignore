@@ -4,3 +4,5 @@ dist/
 .DS_Store
 .trees/
 .user-tokens.json
+images/
+src/data/index.json
