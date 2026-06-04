@@ -3,6 +3,7 @@ import { streamAI, streamAIWithTools, analyzeImage, ChatMessage, ChatContext } f
 import { config } from './config';
 import { validateFileSize, sanitizeFileName, getFileExtension, getImportTargetType, extractFeishuDocLinks, formatFileList, parseFileCommand } from './util';
 import { ToolManager, GetTimeTool, SearchDocTool } from './tools';
+import { searchImages } from './rag';
 import type { LarkChannel, NormalizedMessage } from '@larksuiteoapi/node-sdk';
 import fs from 'fs';
 import path from 'path';
@@ -386,6 +387,27 @@ export async function handleMessage(
   if (fileName) {
     await handleReadFile(channel, msg, fileName);
     return;
+  }
+
+  // 搜索图片指令
+  const searchMatch = query.match(/^(?:搜|搜索|search)\s*(.+)$/i);
+  if (searchMatch) {
+    const searchQuery = searchMatch[1].trim();
+    if (searchQuery) {
+      console.log(`[${userId}] 搜索图片: ${searchQuery}`);
+      const results = searchImages(searchQuery);
+      let text: string;
+      if (results.length === 0) {
+        text = `🔍 搜索结果："${searchQuery}"\n没有找到相关图片`;
+      } else {
+        const lines = results.map(
+          (r, i) => `${i + 1}. ${r.fileName.replace(/\.[^.]+$/, '').replace(/^\d{14}_/, '')}\n      📁 ${r.relativePath}`
+        );
+        text = `🔍 搜索结果："${searchQuery}"\n找到 ${results.length} 张相关图片：\n\n${lines.join('\n\n')}`;
+      }
+      await channel.send(chatId, { text }, { replyTo: messageId });
+      return;
+    }
   }
 
   // 并发检查
