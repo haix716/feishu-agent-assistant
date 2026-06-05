@@ -37,7 +37,16 @@ src/
 ├── lark.ts       # 飞书文件/文档操作封装（Client）
 ├── handler.ts    # 消息处理主逻辑（路由 + 对话管理）
 ├── util.ts       # 工具函数（正则、文件解析）
-└── tools/        # 工具调用（GetTimeTool、SearchDocTool）
+├── tools/        # 工具调用（GetTimeTool、SearchDocTool）
+└── image-gen/    # 图片生成（v2.4.0）
+    ├── index.ts
+    ├── analyzer.ts       # 图片分析 + 提示词生成
+    ├── router.ts         # 场景路由（穿戴/商品/封面）
+    ├── prompt-builder.ts # 提示词模板库
+    └── providers/
+        ├── provider.ts   # ImageProvider 接口
+        ├── replicate.ts  # Replicate API（Try-On + 通用生图）
+        └── jimeng.ts     # 即梦 API（商品图/封面）
 ```
 
 核心流程：`用户消息 → Channel SDK → handler → AI stream → channel.stream() 流式更新`
@@ -54,6 +63,17 @@ src/
 配置项：
 - `IMAGE_SAVE_DIR` — 图片保存目录（默认 `./images`）
 
+## 图片生成功能（v2.4.0）
+
+用户上传商品图/服装图，智能体自动生成：
+1. **穿戴效果图** — 真人模特穿着上传的服装（Replicate Try-On API）
+2. **商品详情图** — 电商风格的商品主图/场景图（即梦 API）
+3. **小红书封面** — 3:4 比例封面图（即梦 API）
+
+流程：用户发图 → MiMo 分析图片 → 生成英文提示词 → 调用生图 API → 返回结果
+
+详细设计：`docs/v2.4.0-image-generation.md`
+
 ## 环境变量
 
 - `APP_ID` / `APP_SECRET` — 飞书应用凭据
@@ -64,6 +84,9 @@ src/
 - `MIMO_IMAGE_MODEL` — 图片分析模型（默认 mimo-v2.5-omni）
 - `MAX_TURNS` — 对话历史最大轮数
 - `DRIVE_FOLDER_TOKEN` — 云盘文件夹 token（可选，自动创建）
+- `REPLICATE_API_TOKEN` — Replicate API token（图片生成用）
+- `JIMENG_API_KEY` — 即梦/火山引擎 API key（图片生成用）
+- `JIMENG_API_SECRET` — 即梦 API secret（图片生成用）
 
 ## 工作流规范
 

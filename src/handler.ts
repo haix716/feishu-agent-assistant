@@ -790,7 +790,7 @@ async function handleImageMessage(
     console.error(`[${userId}] handleImageMessage 未知错误:`, errMsg);
     try {
       await channel.send(chatId, {
-        text: `❌ 图片处理出错\n错误类型：未知\n详细信息：${errMsg}\n请重新发送或联系管理员。`,
+        text: `图片处理出错了，${errMsg}。重新发一张试试？`,
       }, { replyTo: msg.messageId });
     } catch (sendErr) {
       console.error(`[${userId}] 发送错误消息也失败:`, sendErr);

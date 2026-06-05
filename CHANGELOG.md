@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.4.0] - 2026-06-05
+
+### Added
+- **图片生成功能**：用户上传图片后可选择生成穿戴效果图、商品图、小红书封面
+- **图片分析器**：MiMo 多模态分析图片内容，自动生成英文提示词
+- **提示词模板库**：穿戴/白底/场景/封面四种模板
+- **Replicate Provider**：接入 Flux（通用图生图）和 IDM-VTON（虚拟试穿）
+- **即梦 Provider**：CLI 调用方式（需 Maestro VIP，暂不可用）
+- **场景路由**：根据分析结果自动选择最佳 Provider
+- **UX 优化**：发图即时反馈、自然语气、简洁回复
+
+### Changed
+- **handler.ts**：新增图片生成流程（分析 → 选项 → 生成 → 保存）
+- **config.ts**：新增 imageGen 配置块（Replicate + 即梦）
+- **消息风格**：从工具式回复改为同事式对话
+
+### Fixed
+- **Replicate API 404**：社区模型需用 `/v1/predictions` + `version` 字段调用
+
 ## [2.3.1] - 2026-06-04
 
 ### Added
