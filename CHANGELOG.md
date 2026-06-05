@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.4.1] - 2026-06-05
+
+### Security
+- **API Key 泄露修复**：从 git 历史中清除泄露的 `.claude/settings.json`
+- **安全检查脚本重写**：5 层检测（禁文件、API key 模式、路径、媒体、隐藏目录）
+- **Husky hooks**：pre-commit + pre-push 自动运行安全检查
+- **.gitignore 加强**：排除 `.claude/`、`.env`、`*.pem`、`*.key` 等
+- **密钥轮换**：飞书 app_secret 和 MiMo token 已更换
+
+### Added
+- **软件质量保障体系文档**：四层门禁、质量标准、度量指标
+- **软件安全保障体系文档**：纵深防御、泄露响应流程、Claude Code 特有措施
+
 ## [2.4.0] - 2026-06-05
 
 ### Added

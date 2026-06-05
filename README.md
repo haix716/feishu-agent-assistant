@@ -77,11 +77,21 @@ A Feishu/Lark intelligent agent powered by Channel SDK, with streaming responses
 - 📊 多策略匹配：文件名、描述、标签
 - 📁 结果展示：文件名 + 相对路径
 
+### 图片生成（v2.4 新增）
+- 🎨 用户上传图片 → AI 分析 → 生成穿戴效果图/商品图/小红书封面
+- 🤖 Replicate API（Flux 通用生图 + IDM-VTON 虚拟试穿）
+- 📝 自动提示词生成：MiMo 多模态分析图片 → 英文提示词
+
 ### 工作流能力（规划中）
-- 🎨 图片生成：GPT-IMG-2 / Seedream
 - 🎬 视频制作：TapNow / 剪映 MCP
 - 📝 文案生成：基于 RAG 参考图
 - 📦 发布管理：小红书 MCP
+
+### 安全保障（v2.4.1 新增）
+- 🔒 Pre-commit + Pre-push hooks 自动扫描敏感信息
+- 🛡️ 5 层安全检测：禁文件、API key 模式、本地路径、媒体文件、隐藏目录
+- 🔑 环境变量管理：所有密钥存 `.env`，代码只引用 `process.env`
+- 📋 安全文档：质量保障体系 + 安全保障体系（Obsidian）
 
 ---
 
@@ -96,11 +106,20 @@ src/
 ├── handler.ts    # 消息处理主逻辑（路由 + 对话 + 文件处理）
 ├── rag.ts        # RAG 搜索模块（本地图片索引 + 文本匹配）
 ├── util.ts       # 工具函数（正则、文件解析）
-└── tools/        # 工具调用（GetTimeTool、SearchDocTool）
+├── tools/        # 工具调用（GetTimeTool、SearchDocTool）
+└── image-gen/    # 图片生成模块
+    ├── analyzer.ts       # 图片分析 + 提示词生成
+    ├── prompt-builder.ts # 提示词模板库
+    ├── router.ts         # 场景路由
+    └── providers/        # Provider（Replicate、即梦）
 
 scripts/
-├── security-check.sh  # 敏感信息检测（push 前自动运行）
+├── security-check.sh  # 敏感信息检测（5 层扫描）
 └── lint-check.sh      # 代码规范检查
+
+.husky/
+├── pre-commit         # commit 前：lint + 安全检查
+└── pre-push           # push 前：测试 + 安全检查
 ```
 
 ## 架构设计 / Architecture
