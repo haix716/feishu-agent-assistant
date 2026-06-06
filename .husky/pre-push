@@ -1,8 +1,34 @@
 #!/bin/bash
-# Pre-push hook：在 push 前再次运行安全检查
+# Pre-push hook：push 前强制检查
+
+set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# 运行安全检查
+# 1. 安全检查
+echo "🔒 安全检查..."
 "$PROJECT_ROOT/scripts/security-check.sh"
+
+# 2. 跑测试
+echo "🧪 运行测试..."
+npm test
+
+# 3. 检查今天的日记是否已写
+DIARY_DIR="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/MyVault/日记/$(date +%Y)/$(date +%m)"
+TODAY=$(date +%Y-%m-%d)
+DIARY_FILE="$DIARY_DIR/$TODAY.md"
+
+if [ ! -f "$DIARY_FILE" ]; then
+  echo ""
+  echo "❌ 今天的日记还没写！"
+  echo "   路径：$DIARY_FILE"
+  echo ""
+  echo "   写完日记再 push。"
+  echo ""
+  exit 1
+fi
+
+echo "✅ 日记已写：$DIARY_FILE"
+echo ""
+echo "🎉 全部检查通过，开始 push..."
