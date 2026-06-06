@@ -6,15 +6,23 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+cd "$PROJECT_ROOT"
+
 # 1. 安全检查
 echo "🔒 安全检查..."
 "$PROJECT_ROOT/scripts/security-check.sh"
 
-# 2. 跑测试
+# 2. 检查测试覆盖（缺测试则自动派 agent 写）
+echo ""
+echo "📝 检查测试覆盖..."
+"$PROJECT_ROOT/scripts/check-tests.sh"
+
+# 3. 跑测试
+echo ""
 echo "🧪 运行测试..."
 npm test
 
-# 3. 检查今天的日记是否已写
+# 4. 检查今天的日记是否已写
 DIARY_DIR="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/MyVault/日记/$(date +%Y)/$(date +%m)"
 TODAY=$(date +%Y-%m-%d)
 DIARY_FILE="$DIARY_DIR/$TODAY.md"

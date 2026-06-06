@@ -6,7 +6,8 @@ dist/
 .user-tokens.json
 images/
 src/data/index.json
-.claude/
+.claude/*
+!.claude/agents/
 
 # LibTV CLI local config
 .libtv/
