@@ -158,22 +158,6 @@ export async function refreshUserToken(userId: string): Promise<TokenInfo | null
 }
 
 /**
- * 获取用户的 user_access_token（自动刷新）
- */
-export async function getUserAccessToken(userId: string): Promise<string | null> {
-  const tokenInfo = userTokens.get(userId);
-  if (!tokenInfo) return null;
-
-  // 如果 token 即将过期（5分钟内），尝试刷新
-  if (tokenInfo.expiresAt - Date.now() < 5 * 60 * 1000) {
-    const refreshed = await refreshUserToken(userId);
-    return refreshed?.accessToken || null;
-  }
-
-  return tokenInfo.accessToken;
-}
-
-/**
  * 检查用户是否已授权
  */
 export function isUserAuthorized(userId: string): boolean {
