@@ -88,28 +88,33 @@ src/
 - `JIMENG_API_KEY` — 即梦/火山引擎 API key（图片生成用）
 - `JIMENG_API_SECRET` — 即梦 API secret（图片生成用）
 
-## 工作流规范
+## 质量门禁（代码强制）
 
-遵循全局 CLAUDE.md 的「讨论→确认→执行」流程：
+以下规则由 `scripts/quality-gate.sh` 自动执行，不需要人工检查：
 
-1. **先停智能体** → 改代码 → 编译 + lint（0 error）→ 重启智能体
+| 检查项 | commit 时 | push 时 | 说明 |
+|--------|-----------|---------|------|
+| 敏感信息扫描 | ✅ | ✅ | API key、token、密码、媒体文件 |
+| 禁止文件检测 | ✅ | ✅ | .claude/、.env、.pem、node_modules/ |
+| ESLint error | ✅ | ✅ | 0 error 才能通过 |
+| Commit message 格式 | ✅ | — | `<type>(<scope>): <description>` |
+| 测试覆盖检查 | — | ✅ | 缺测试给警告，不阻塞 |
+| 全量测试 | — | ✅ | 所有测试必须通过 |
+| 日记检查 | — | ✅ | 今天的日记必须已写 |
+
+- pre-commit（<5s）：安全 + lint + commit message
+- pre-push（完整）：安全 + 测试覆盖 + 全量测试 + 日记
+- agent 产出验证：`scripts/quality-gate.sh agent`
+
+## 工作流指导（Claude 自律，非强制）
+
+以下规则无法用代码强制，Claude 应自觉遵守：
+
+1. **先停智能体** → 改代码 → 编译 + lint → 重启智能体
 2. 等用户在飞书里测试确认功能正常
-3. **用户明确确认后**再 commit → 敏感信息扫描 → push
-
-### 任务大小判断
-- **直接做**：单文件修改、小 bug 修复、明确的单步操作
-- **先讨论**：多文件改动、新功能、有多种实现方案
-
-### Commit 规范
-- 格式：`<type>(<scope>): <description>`
-- description 用英文，小写开头，不超过 72 字符
-- 提交前必须 lint：`npx eslint src/`（0 error）
-- push 前必须敏感信息扫描：`git diff --cached | grep -iE "token|key|secret|password|ghp_|sk-"`
-
-### 安全规则
-- 密钥、token、密码不进代码、不进 commit、不进日志
-- API key 只存 `.env`（被 .gitignore 排除）
-- 涉及 API key 的操作必须让晓燕文字确认
+3. **用户明确确认后**再 commit
+4. 多文件改动、新功能、有多种实现方案 → 先讨论再动手
+5. 涉及 API key 的操作必须让晓燕文字确认
 
 ## 多 Agent 并行开发规范
 
@@ -134,10 +139,10 @@ src/
 - 不要动哪些文件（其他 agent 负责）
 - 验收标准（lint 0 error、测试通过、功能正常）
 
-### 质量门禁
-- PreToolUse hook：敏感信息扫描
-- PostToolUse hook：自动 lint
-- SubagentStop hook：验证 agent 产出（lint + test + commit）
+### 质量门禁（代码强制）
+- PreToolUse hook：`scripts/quality-gate.sh commit`（安全 + lint）
+- PostToolUse hook：`scripts/lint-check.sh`（单文件 lint）
+- SubagentStop hook：`scripts/quality-gate.sh agent`（lint + test + 工作区检查）
 
 ### 并行原则
 - 独立任务并行，有依赖的串行

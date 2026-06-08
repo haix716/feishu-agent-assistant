@@ -1,1 +1,8 @@
-npm test
+#!/bin/bash
+# Pre-commit hook：快速检查（安全 + lint + commit message 格式）
+# 设计原则：<5s 完成，不跑全量测试
+
+set -e
+
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+"$PROJECT_ROOT/scripts/quality-gate.sh" commit
