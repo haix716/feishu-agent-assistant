@@ -99,7 +99,25 @@ else
   fi
 fi
 
-# ==================== 2. Lint 检查（commit/push） ====================
+# ==================== 2. Pre-mortem 风险预检（commit） ====================
+if [ "$MODE" = "commit" ]; then
+  echo ""
+  echo "🔮 Pre-mortem 风险预检..."
+  PREMORTEM_OUTPUT=$("$PROJECT_ROOT/scripts/premortem.sh" staged 2>&1) || true
+  PREMORTEM_EXIT=$?
+
+  if [ $PREMORTEM_EXIT -ne 0 ]; then
+    fail "Pre-mortem 发现高风险项"
+    echo "$PREMORTEM_OUTPUT" | grep -E "🔴|🟡|🟢|⚠️" | head -10
+  elif echo "$PREMORTEM_OUTPUT" | grep -qE "🟡|⚠️"; then
+    warn "Pre-mortem 有风险提示（不阻塞）"
+    echo "$PREMORTEM_OUTPUT" | grep -E "🟡|⚠️" | head -5
+  else
+    pass "Pre-mortem 未发现风险"
+  fi
+fi
+
+# ==================== 3. Lint 检查（commit/push） ====================
 if [ "$MODE" = "commit" ] || [ "$MODE" = "push" ]; then
   echo ""
   echo "📏 Lint 检查..."

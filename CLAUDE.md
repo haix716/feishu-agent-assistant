@@ -99,6 +99,21 @@ src/
 - `JIMENG_API_KEY` — 即梦/火山引擎 API key（图片生成用）
 - `JIMENG_API_SECRET` — 即梦 API secret（图片生成用）
 
+## Pre-mortem 风险预检
+
+**代码层面**（自动化）：
+- commit 时自动运行 `scripts/premortem.sh staged`
+- 扫描：硬编码密钥、缺少错误处理、并发风险、资源泄漏、API 调用风险
+- 高风险阻塞提交，中风险给提示不阻塞
+
+**设计层面**（Claude 主动）：
+- 开始新功能前，Claude 应主动做 pre-mortem 分析：
+  1. 这个功能可能在哪失败？
+  2. 有哪些边界情况没覆盖？
+  3. 对现有功能有什么影响？
+  4. 回滚方案是什么？
+- 分析结果记入 Obsidian 决策记录
+
 ## 质量门禁（代码强制）
 
 以下规则由 `scripts/quality-gate.sh` 自动执行，不需要人工检查：
@@ -107,6 +122,7 @@ src/
 |--------|-----------|---------|------|
 | 敏感信息扫描 | ✅ | ✅ | API key、token、密码、媒体文件 |
 | 禁止文件检测 | ✅ | ✅ | .claude/、.env、.pem、node_modules/ |
+| Pre-mortem 风险预检 | ✅ | — | 风险模式检测（高风险阻塞） |
 | ESLint error | ✅ | ✅ | 0 error 才能通过 |
 | Commit message 格式 | ✅ | — | `<type>(<scope>): <description>` |
 | 测试覆盖检查 | — | ✅ | 缺测试给警告，不阻塞 |
