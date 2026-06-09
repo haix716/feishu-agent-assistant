@@ -144,11 +144,42 @@ src/
 | Commit message 格式 | ✅ | — | `<type>(<scope>): <description>` |
 | 测试覆盖检查 | — | ✅ | 缺测试给警告，不阻塞 |
 | 全量测试 | — | ✅ | 所有测试必须通过 |
-| 日记检查 | — | ✅ | 今天的日记必须已写 |
+| 日记检查 | — | ✅ | 不存在则自动创建骨架 |
+| Memory 新鲜度 | — | ✅ | 超 7 天自动更新 project.md |
+| 版本一致性 | — | ✅ | package.json == CHANGELOG.md |
 
 - pre-commit（<5s）：安全 + lint + commit message
-- pre-push（完整）：安全 + 测试覆盖 + 全量测试 + 日记
+- pre-push（完整）：安全 + 测试覆盖 + 全量测试 + 日记 + memory + 版本
 - agent 产出验证：`scripts/quality-gate.sh agent`
+
+## 信息架构（减少 + 连通 + 自动化）
+
+**原则**：信息只存在一个地方，其他地方引用它。
+
+### 信息归属
+
+| 信息 | 真相源 | 引用位置 | 更新方式 |
+|------|--------|----------|----------|
+| 版本号 | `package.json` | CHANGELOG.md、config.ts | version-bump.sh |
+| 发布记录 | `CHANGELOG.md` | Obsidian（引用） | version-bump.sh |
+| 项目状态 | `git log` | memory/project.md | update-memory.sh |
+| 功能描述 | `CLAUDE.md` | README.md（引用） | 手动 |
+| 用户偏好 | `memory/user.md` | — | 手动 |
+| 经验教训 | `memory/feedback.md` | — | 手动 |
+| 外部资源 | `memory/reference.md` | — | 手动 |
+
+### 禁止
+
+- 在 CLAUDE.md 中硬编码版本号
+- 在 README.md 中重复 CLAUDE.md 的功能描述
+- 在 Obsidian 中维护独立的 changelog
+- 在 memory 中存项目状态（git log 有）
+
+### 自动化
+
+- push 时自动更新 `memory/project.md`（从 git log 生成）
+- push 时自动创建日记骨架（如果不存在）
+- push 时自动检查版本一致性
 
 ## 版本管理
 

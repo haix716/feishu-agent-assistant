@@ -229,7 +229,7 @@ if [ "$MODE" = "agent" ]; then
   info "最近 commit: $LAST_COMMIT"
 fi
 
-# ==================== 7. 日记检查（push） ====================
+# ==================== 7. 日记检查 + 自动创建（push） ====================
 if [ "$MODE" = "push" ]; then
   echo ""
   echo "📔 日记检查..."
@@ -240,16 +240,39 @@ if [ "$MODE" = "push" ]; then
   if [ -f "$DIARY_FILE" ]; then
     pass "日记已写：$DIARY_FILE"
   else
-    fail "今天的日记还没写：$DIARY_FILE"
+    # 自动创建日记骨架
+    mkdir -p "$DIARY_DIR"
+    cat > "$DIARY_FILE" << EOF
+---
+date: $TODAY
+tags: [日记]
+---
+
+# $TODAY
+
+## 今日重点
+
+## 任务
+
+## 笔记
+
+## 想法
+
+## 总结
+
+## 反思
+EOF
+    warn "日记不存在，已自动创建骨架：$DIARY_FILE"
+    echo "   请 Claude 填充内容"
   fi
 fi
 
-# ==================== 8. 文档新鲜度检查（push） ====================
+# ==================== 8. 文档新鲜度检查 + 自动更新（push） ====================
 if [ "$MODE" = "push" ]; then
   echo ""
   echo "📚 文档新鲜度检查..."
 
-  # 8a. Memory 新鲜度
+  # 8a. Memory 新鲜度 + 自动更新
   MEMORY_DIR="$HOME/.claude/projects/-Users-hxy-Documents-------claude-bot/memory"
   MEMORY_FILE="$MEMORY_DIR/MEMORY.md"
   MEMORY_STALE_DAYS=7
@@ -261,13 +284,14 @@ if [ "$MODE" = "push" ]; then
     MEMORY_AGE_DAYS=$(( (NOW - MEMORY_MTIME) / 86400 ))
 
     if [ $MEMORY_AGE_DAYS -gt $MEMORY_STALE_DAYS ]; then
-      warn "Memory 已 ${MEMORY_AGE_DAYS} 天未更新（阈值: ${MEMORY_STALE_DAYS} 天）"
-      echo "   建议：检查 memory 文件是否反映当前项目状态"
+      warn "Memory 已 ${MEMORY_AGE_DAYS} 天未更新，自动更新中..."
+      bash "$PROJECT_ROOT/scripts/update-memory.sh" 2>&1 | tail -5
     else
       pass "Memory 新鲜（${MEMORY_AGE_DAYS} 天前更新）"
     fi
   else
-    warn "MEMORY.md 不存在"
+    warn "MEMORY.md 不存在，自动创建中..."
+    bash "$PROJECT_ROOT/scripts/update-memory.sh" 2>&1 | tail -5
   fi
 
   # 8b. Changelog 新鲜度
