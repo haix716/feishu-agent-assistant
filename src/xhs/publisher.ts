@@ -193,12 +193,6 @@ export class XhsPublisher {
   async publish(params: PublishParams): Promise<PublishResult> {
     if (!this.context) await this.init();
 
-    // 检查登录状态
-    const loggedIn = await this.isLoggedIn();
-    if (!loggedIn) {
-      return { success: false, error: '未登录，请先执行登录' };
-    }
-
     const page = await this.context!.newPage();
     try {
       console.log('[XHS] 打开发布页面...');
