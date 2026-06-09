@@ -1,0 +1,91 @@
+{
+  "3": {
+    "class_type": "KSampler",
+    "inputs": {
+      "cfg": 7,
+      "denoise": 0.45,
+      "latent_image": ["13", 0],
+      "model": ["4", 0],
+      "negative": ["7", 0],
+      "positive": ["6", 0],
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "seed": 42,
+      "steps": 25
+    }
+  },
+  "4": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "realvisxlV40.safetensors"
+    }
+  },
+  "6": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": ["4", 1],
+      "text": "professional product photography, silver jewelry, dark gradient background, studio lighting, preserve exact product appearance, 8K"
+    }
+  },
+  "7": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": ["4", 1],
+      "text": "text, watermark, nsfw, blurry, low quality, distorted"
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["4", 2]
+    }
+  },
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "ComfyUI_i2i",
+      "images": ["8", 0]
+    }
+  },
+  "10": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "source.jpg"
+    }
+  },
+  "11": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": ["10", 0],
+      "vae": ["4", 2]
+    }
+  },
+  "12": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": ["10", 0],
+      "vae": ["4", 2]
+    }
+  },
+  "13": {
+    "class_type": "SetLatentNoiseMask",
+    "inputs": {
+      "samples": ["11", 0],
+      "mask": ["14", 0]
+    }
+  },
+  "14": {
+    "class_type": "InvertMask",
+    "inputs": {
+      "mask": ["15", 0]
+    }
+  },
+  "15": {
+    "class_type": "ImageToMask",
+    "inputs": {
+      "image": ["10", 0],
+      "channel": "alpha"
+    }
+  }
+}
