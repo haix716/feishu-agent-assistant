@@ -53,7 +53,7 @@ export async function analyzeImageForGeneration(base64Image: string): Promise<Im
         },
       ],
     }],
-    max_completion_tokens: 1500,
+    max_completion_tokens: 2500,
   });
 
   const content = response.choices[0]?.message?.content || '';
@@ -100,11 +100,18 @@ export async function analyzeImageForGeneration(base64Image: string): Promise<Im
     console.warn('图片分析 JSON 解析失败，使用默认值:', err);
     console.warn('原始回复:', content);
 
-    // 降级：用原始文本作为提示词
+    // 尝试从原始回复中提取 description 字段
+    let description = '图片';
+    const descMatch = content.match(/"description"\s*:\s*"([^"]+)"/);
+    if (descMatch) {
+      description = descMatch[1];
+    }
+
+    // 降级：用提取的描述或默认值
     return {
       contentType: 'other',
       category: '商品',
-      description: content.substring(0, 100) || '图片',
+      description: description,
       fileName: '图片',
       attributes: {
         color: '未知',
