@@ -329,7 +329,7 @@ export class XhsPublisher {
   }
 
   /**
-   * 上传图片到发布页面
+   * 上传图片到发布页面（逐个上传）
    */
   private async uploadImages(page: Page, images: Buffer[]): Promise<void> {
     // 将图片 buffer 写入临时文件
@@ -349,7 +349,13 @@ export class XhsPublisher {
       // 找到文件上传 input
       const fileInput = await page.$('input[type="file"]');
       if (fileInput) {
-        await fileInput.setInputFiles(tempFiles);
+        // 逐个上传图片
+        for (let i = 0; i < tempFiles.length; i++) {
+          console.log(`[XHS] 上传第 ${i + 1}/${tempFiles.length} 张图片...`);
+          await fileInput.setInputFiles(tempFiles[i]);
+          // 等待上传完成
+          await page.waitForTimeout(1000);
+        }
         console.log(`[XHS] 已上传 ${tempFiles.length} 张图片`);
       } else {
         console.warn('[XHS] 未找到文件上传 input');
