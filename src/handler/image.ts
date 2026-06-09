@@ -107,7 +107,7 @@ export async function handlePendingImageEditResponse(
   if (pendingXhsPublish.has(userId)) {
     const pending = pendingXhsPublish.get(userId)!;
 
-    if (/^(确认|发布|ok|yes|是)/i.test(query)) {
+    if (/^(确认|发布|ok|yes|是|xhs_confirm)/i.test(query)) {
       await channel.send(msg.chatId, {
         text: `正在准备发布到小红书...`,
       }, { replyTo: msg.messageId });
@@ -171,7 +171,7 @@ export async function handlePendingImageEditResponse(
       return true;
     }
 
-    if (/^(取消|放弃|cancel|no|否)/i.test(query)) {
+    if (/^(取消|放弃|cancel|no|否|xhs_cancel)/i.test(query)) {
       pendingXhsPublish.delete(userId);
       await channel.send(msg.chatId, { text: '已取消发布' }, { replyTo: msg.messageId });
       return true;
@@ -579,7 +579,6 @@ async function handleXhsPublish(
       `🏷️ 标签：${content.tags.map(t => `#${t}`).join(' ')}`,
       ``,
       `---`,
-      `确认发布？回复「确认」发布，或「取消」放弃`,
     ].join('\n');
 
     // 发送封面预览图
@@ -587,10 +586,17 @@ async function handleXhsPublish(
       image: { source: coverImage },
     }, { replyTo: msg.messageId });
 
-    // 发送内容预览
-    await channel.send(chatId, {
-      text: previewText,
-    }, { replyTo: msg.messageId });
+    // 发送内容预览（带按钮）
+    await larkService.sendInteractiveMessage(
+      chatId,
+      '📝 小红书笔记预览',
+      previewText,
+      [
+        { text: '✅ 确认发布', value: 'xhs_confirm', type: 'primary' },
+        { text: '❌ 取消', value: 'xhs_cancel', type: 'danger' },
+      ],
+      msg.messageId,
+    );
 
     // 5. 存储待发布状态
     pendingXhsPublish.set(userId, {

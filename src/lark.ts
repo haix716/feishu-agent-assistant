@@ -517,6 +517,58 @@ class LarkService {
     }
   }
 
+  /** 发送带按钮的交互消息 */
+  async sendInteractiveMessage(
+    chatId: string,
+    title: string,
+    content: string,
+    buttons: Array<{ text: string; value: string; type?: 'primary' | 'danger' }>,
+    replyTo?: string,
+  ): Promise<boolean> {
+    try {
+      const card = {
+        config: { wide_screen_mode: true },
+        header: {
+          title: { tag: 'plain_text', content: title },
+        },
+        elements: [
+          {
+            tag: 'div',
+            text: { tag: 'lark_md', content },
+          },
+          {
+            tag: 'action',
+            actions: buttons.map(btn => ({
+              tag: 'button',
+              text: { tag: 'plain_text', content: btn.text },
+              type: btn.type || 'primary',
+              value: { action: btn.value },
+            })),
+          },
+        ],
+      };
+
+      const resp = await this.client.im.message.create({
+        params: { receive_id_type: 'chat_id' },
+        data: {
+          receive_id: chatId,
+          msg_type: 'interactive',
+          content: JSON.stringify(card),
+        },
+      });
+
+      if (resp.code === 0) {
+        console.log(`[sendInteractiveMessage] 消息发送成功: chatId=${chatId}`);
+        return true;
+      }
+      console.error(`[sendInteractiveMessage] 发送失败: ${resp.msg}`);
+      return false;
+    } catch (err) {
+      console.error('[sendInteractiveMessage] 发送失败:', err);
+      return false;
+    }
+  }
+
   /** 使用用户身份创建文件夹 */
   async createFolderWithUserToken(
     userAccessToken: string,
