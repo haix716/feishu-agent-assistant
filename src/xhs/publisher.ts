@@ -202,24 +202,43 @@ export class XhsPublisher {
       });
 
       // 等待页面加载
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(3000);
+
+      // 保存截图用于调试
+      const screenshotDir = path.join(os.tmpdir(), 'xhs-debug');
+      if (!fs.existsSync(screenshotDir)) {
+        fs.mkdirSync(screenshotDir, { recursive: true });
+      }
+      const screenshotPath = path.join(screenshotDir, `publish-page-${Date.now()}.png`);
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+      console.log(`[XHS] 页面截图已保存: ${screenshotPath}`);
 
       // 1. 上传图片
       console.log(`[XHS] 上传 ${params.images.length} 张图片...`);
       await this.uploadImages(page, params.images);
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(3000);
 
       // 2. 填写标题
       console.log(`[XHS] 填写标题: ${params.title}`);
-      const titleInput = await page.$('input[placeholder*="标题"], #title, [class*="title"] input');
+      const titleInput = await page.$('input[placeholder*="标题"], input[class*="title"], #title');
       if (titleInput) {
         await titleInput.click();
         await titleInput.fill(params.title.substring(0, 20)); // 标题限 20 字
+        console.log('[XHS] 标题已填写');
+      } else {
+        console.warn('[XHS] 未找到标题输入框，尝试其他选择器...');
+        // 尝试更通用的选择器
+        const allInputs = await page.$$('input');
+        console.log(`[XHS] 找到 ${allInputs.length} 个 input 元素`);
+        for (const input of allInputs) {
+          const placeholder = await input.getAttribute('placeholder');
+          console.log(`[XHS] input placeholder: ${placeholder}`);
+        }
       }
 
       // 3. 填写正文
       console.log('[XHS] 填写正文...');
-      const contentInput = await page.$('[contenteditable="true"], textarea[placeholder*="正文"], #content');
+      const contentInput = await page.$('[contenteditable="true"], textarea[placeholder*="正文"], div[contenteditable="true"]');
       if (contentInput) {
         await contentInput.click();
         // 构建正文（含标签）
@@ -228,49 +247,53 @@ export class XhsPublisher {
           fullContent += '\n\n' + params.tags.map(t => `#${t}`).join(' ');
         }
         await contentInput.fill(fullContent.substring(0, 1000)); // 正文限 1000 字
+        console.log('[XHS] 正文已填写');
+      } else {
+        console.warn('[XHS] 未找到正文输入框');
       }
 
-      // 4. 添加话题标签
-      if (params.tags && params.tags.length > 0) {
-        console.log(`[XHS] 添加标签: ${params.tags.join(', ')}`);
-        for (const tag of params.tags) {
-          try {
-            const tagBtn = await page.$('[class*="tag"], [class*="topic"]');
-            if (tagBtn) {
-              await tagBtn.click();
-              await page.waitForTimeout(500);
-              const tagInput = await page.$('input[placeholder*="话题"], input[placeholder*="标签"]');
-              if (tagInput) {
-                await tagInput.fill(tag);
-                await page.waitForTimeout(1000);
-                // 选择第一个建议
-                const suggestion = await page.$('[class*="suggestion"], [class*="option"]');
-                if (suggestion) {
-                  await suggestion.click();
-                }
-              }
-            }
-          } catch (tagErr) {
-            console.warn(`[XHS] 添加标签失败: ${tag}`, tagErr);
-          }
-        }
-      }
-
-      // 5. 点击发布按钮
+      // 4. 点击发布按钮
       console.log('[XHS] 点击发布...');
       await page.waitForTimeout(1000);
 
-      const publishBtn = await page.$('button:has-text("发布"), [class*="publish"] button');
+      // 尝试多种选择器找到发布按钮
+      const publishSelectors = [
+        'button:has-text("发布")',
+        'button:has-text("Publish")',
+        '[class*="publish"] button',
+        'button[class*="submit"]',
+        'button[type="submit"]',
+        'button.css-k9b0nd', // 小红书特定类名
+      ];
+
+      let publishBtn = null;
+      for (const selector of publishSelectors) {
+        try {
+          publishBtn = await page.$(selector);
+          if (publishBtn) {
+            console.log(`[XHS] 找到发布按钮: ${selector}`);
+            break;
+          }
+        } catch { /* ignore */ }
+      }
+
       if (publishBtn) {
         await publishBtn.click();
         console.log('[XHS] 已点击发布按钮');
 
         // 等待发布完成
-        await page.waitForTimeout(3000);
+        await page.waitForTimeout(5000);
+
+        // 保存发布后的截图
+        const afterScreenshotPath = path.join(screenshotDir, `after-publish-${Date.now()}.png`);
+        await page.screenshot({ path: afterScreenshotPath, fullPage: true });
+        console.log(`[XHS] 发布后截图: ${afterScreenshotPath}`);
 
         // 检查是否发布成功
         const url = page.url();
-        if (url.includes('publish') && !url.includes('login')) {
+        console.log(`[XHS] 发布后 URL: ${url}`);
+
+        if (!url.includes('login')) {
           // 尝试获取笔记链接
           const noteUrl = await this.extractNoteUrl(page);
 
@@ -278,6 +301,15 @@ export class XhsPublisher {
             success: true,
             noteUrl,
           };
+        }
+      } else {
+        console.warn('[XHS] 未找到发布按钮，打印所有按钮...');
+        const allButtons = await page.$$('button');
+        console.log(`[XHS] 找到 ${allButtons.length} 个按钮`);
+        for (const btn of allButtons) {
+          const text = await btn.textContent();
+          const className = await btn.getAttribute('class');
+          console.log(`[XHS] 按钮: "${text}", class: ${className}`);
         }
       }
 
