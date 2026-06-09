@@ -244,6 +244,60 @@ if [ "$MODE" = "push" ]; then
   fi
 fi
 
+# ==================== 8. 文档新鲜度检查（push） ====================
+if [ "$MODE" = "push" ]; then
+  echo ""
+  echo "📚 文档新鲜度检查..."
+
+  # 8a. Memory 新鲜度
+  MEMORY_DIR="$HOME/.claude/projects/-Users-hxy-Documents-------claude-bot/memory"
+  MEMORY_FILE="$MEMORY_DIR/MEMORY.md"
+  MEMORY_STALE_DAYS=7
+
+  if [ -f "$MEMORY_FILE" ]; then
+    # 获取 MEMORY.md 最后修改时间（macOS）
+    MEMORY_MTIME=$(stat -f "%m" "$MEMORY_FILE" 2>/dev/null || stat -c "%Y" "$MEMORY_FILE" 2>/dev/null)
+    NOW=$(date +%s)
+    MEMORY_AGE_DAYS=$(( (NOW - MEMORY_MTIME) / 86400 ))
+
+    if [ $MEMORY_AGE_DAYS -gt $MEMORY_STALE_DAYS ]; then
+      warn "Memory 已 ${MEMORY_AGE_DAYS} 天未更新（阈值: ${MEMORY_STALE_DAYS} 天）"
+      echo "   建议：检查 memory 文件是否反映当前项目状态"
+    else
+      pass "Memory 新鲜（${MEMORY_AGE_DAYS} 天前更新）"
+    fi
+  else
+    warn "MEMORY.md 不存在"
+  fi
+
+  # 8b. Changelog 新鲜度
+  OBSIDIAN_VAULT="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents/MyVault"
+  CHANGELOG_FILE="$OBSIDIAN_VAULT/项目/飞书助手/Claude飞书机器人/1. Claude飞书机器人-版本更新记录.md"
+
+  if [ -f "$CHANGELOG_FILE" ]; then
+    # 检查 changelog 最后修改时间
+    CHANGELOG_MTIME=$(stat -f "%m" "$CHANGELOG_FILE" 2>/dev/null || stat -c "%Y" "$CHANGELOG_FILE" 2>/dev/null)
+    CHANGELOG_AGE_DAYS=$(( (NOW - CHANGELOG_MTIME) / 86400 ))
+
+    # 检查最近的 feat/fix commit 时间
+    LAST_FEAT_COMMIT=$(git log --format="%at" --grep="^feat\|^fix" -1 2>/dev/null || echo "0")
+    if [ "$LAST_FEAT_COMMIT" != "0" ]; then
+      DAYS_SINCE_LAST_FEAT=$(( (NOW - LAST_FEAT_COMMIT) / 86400 ))
+
+      if [ $CHANGELOG_AGE_DAYS -gt $DAYS_SINCE_LAST_FEAT ]; then
+        warn "Changelog 已 ${CHANGELOG_AGE_DAYS} 天未更新，但 ${DAYS_SINCE_LAST_FEAT} 天前有 feat/fix commit"
+        echo "   建议：更新 Obsidian changelog"
+      else
+        pass "Changelog 与代码同步"
+      fi
+    else
+      pass "没有 feat/fix commit，无需更新 changelog"
+    fi
+  else
+    warn "Changelog 文件不存在：$CHANGELOG_FILE"
+  fi
+fi
+
 # ==================== 结果汇总 ====================
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
