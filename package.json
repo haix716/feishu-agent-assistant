@@ -1,6 +1,6 @@
 {
   "name": "claude-feishu-bot",
-  "version": "0.1.0",
+  "version": "2.5.0",
   "private": true,
   "scripts": {
     "dev": "ts-node src/app.ts",

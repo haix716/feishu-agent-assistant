@@ -298,6 +298,31 @@ if [ "$MODE" = "push" ]; then
   fi
 fi
 
+# ==================== 9. 版本一致性检查（push） ====================
+if [ "$MODE" = "push" ]; then
+  echo ""
+  echo "🔢 版本一致性检查..."
+
+  # 读 package.json 版本
+  PKG_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "")
+
+  if [ -z "$PKG_VERSION" ]; then
+    fail "无法读取 package.json 版本号"
+  else
+    # 读 CHANGELOG.md 最新版本
+    CHANGELOG_LATEST=$(grep -oE '^\#\# \[([0-9]+\.[0-9]+\.[0-9]+)\]' CHANGELOG.md 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+
+    if [ -z "$CHANGELOG_LATEST" ]; then
+      warn "无法从 CHANGELOG.md 读取版本号"
+    elif [ "$PKG_VERSION" != "$CHANGELOG_LATEST" ]; then
+      fail "版本不一致：package.json=${PKG_VERSION}，CHANGELOG.md=${CHANGELOG_LATEST}"
+      echo "   请运行 version-bump.sh 或手动同步版本号"
+    else
+      pass "版本一致：${PKG_VERSION}"
+    fi
+  fi
+fi
+
 # ==================== 结果汇总 ====================
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

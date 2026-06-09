@@ -150,6 +150,53 @@ src/
 - pre-push（完整）：安全 + 测试覆盖 + 全量测试 + 日记
 - agent 产出验证：`scripts/quality-gate.sh agent`
 
+## 版本管理
+
+**单一真相源：`package.json`**
+
+- 版本号只在 `package.json` 定义，其他地方引用它
+- 发版用 `bash scripts/version-bump.sh [major|minor|patch] [描述]`
+- 不要在 CLAUDE.md、README.md 中硬编码版本号
+- 功能描述写"最新版"或"见 package.json"
+- CHANGELOG.md 由 version-bump.sh 自动更新
+
+**版本一致性检查（push 时自动执行）**：
+- `scripts/quality-gate.sh push` 会检查 package.json 版本 == CHANGELOG.md 最新版本
+- 不一致时阻塞 push
+
+**发版后手动操作**：
+1. 更新飞书开发者后台的智能体应用版本号
+2. 同步 Obsidian 版本记录（如果需要）
+
+## 指令规范
+
+**重要任务**（多文件、新功能、架构决策）：
+- 必须用结构化 Prompt（五部分交互契约：现状、目标、示例、约束、方法）
+- 不允许"直接做"、"看看"等无上下文指令
+
+**简单任务**（查看、确认、小修改）：
+- 可以简短，但必须说明"做什么"+"在哪"
+- 示例：✅ "看看 comfyui.ts 的 lint 错误" ❌ "看看"
+
+**禁止**：
+- 无上下文指令："直接做"、"看看"、"改一下"
+- 必须指明对象和目标
+
+## 上下文管理
+
+**任务切换时**：
+- 先 `/clear` 或 `/compact` 清理上下文
+- 发现 memory 过时：立即更新，不等 quality gate 提醒
+
+**功后自动沉淀**：
+- 完成功能后：更新相关 memory 文件
+- 修复 bug 后：记录根因和修复方案到 memory
+- 重大决策后：记录决策理由到 Obsidian
+
+**Memory 新鲜度检查（push 时自动执行）**：
+- MEMORY.md 超过 7 天未更新 → 警告
+- Changelog 与 commit 不同步 → 警告
+
 ## 工作流指导（Claude 自律，非强制）
 
 以下规则无法用代码强制，Claude 应自觉遵守：

@@ -1,8 +1,15 @@
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 
 dotenv.config({ override: true });
 
+// 读取 package.json 版本号（单一真相源）
+const pkgPath = path.join(__dirname, '..', 'package.json');
+const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+
 export const config = {
+  appVersion: pkg.version as string,
   lark: {
     appId: process.env.APP_ID || '',
     appSecret: process.env.APP_SECRET || '',
