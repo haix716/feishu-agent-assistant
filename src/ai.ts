@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { config } from './config';
 import { ToolManager, ToolDefinition } from './tools';
+import { generateMetacognitionContext } from './metacognition';
 
 const openai = new OpenAI({
   apiKey: config.ai.apiKey,
@@ -31,6 +32,13 @@ function buildSystemPrompt(ctx?: ChatContext): string {
   if (ctx?.userName) systemParts.push(`用户名称：${ctx.userName}`);
   if (ctx?.chatName) systemParts.push(`群聊名称：${ctx.chatName}`);
   if (ctx?.chatType === 'group') systemParts.push('当前在群聊中，请简洁回复。');
+
+  // 添加元认知上下文
+  const metacognitionContext = generateMetacognitionContext();
+  if (metacognitionContext) {
+    systemParts.push(metacognitionContext);
+  }
+
   return systemParts.join('\n');
 }
 
