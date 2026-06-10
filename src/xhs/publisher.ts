@@ -49,16 +49,26 @@ export class XhsPublisher {
 
     // 尝试加载已保存的 Cookie
     const cookies = this.loadCookies();
+    console.log(`[XHS] 加载 ${cookies.length} 个 Cookie`);
+    const contextOptions: any = {
+      locale: 'zh-CN',
+    };
+
     if (cookies.length > 0) {
-      this.context = await this.browser.newContext({
-        storageState: { cookies, origins: [] },
-        locale: 'zh-CN',
-      });
-    } else {
-      this.context = await this.browser.newContext({
-        locale: 'zh-CN',
-      });
+      contextOptions.storageState = { cookies, origins: [] };
     }
+
+    // 启用录屏功能
+    const videoDir = path.join(os.tmpdir(), 'xhs-recordings');
+    if (!fs.existsSync(videoDir)) {
+      fs.mkdirSync(videoDir, { recursive: true });
+    }
+    contextOptions.recordVideo = {
+      dir: videoDir,
+      size: { width: 1280, height: 720 },
+    };
+
+    this.context = await this.browser.newContext(contextOptions);
   }
 
   /**
@@ -66,6 +76,16 @@ export class XhsPublisher {
    */
   async close(): Promise<void> {
     if (this.context) {
+      // 获取录屏文件路径
+      const pages = this.context.pages();
+      if (pages.length > 0) {
+        const page = pages[0];
+        const video = page.video();
+        if (video) {
+          const videoPath = await video.path();
+          console.log(`[XHS] 录屏文件: ${videoPath}`);
+        }
+      }
       await this.context.close();
       this.context = null;
     }
@@ -213,6 +233,35 @@ export class XhsPublisher {
       await page.screenshot({ path: screenshotPath, fullPage: true });
       console.log(`[XHS] 页面截图已保存: ${screenshotPath}`);
 
+      // 关闭可能弹出的地理位置弹窗或下拉菜单
+      try {
+        await page.evaluate(() => {
+          // 关闭所有弹窗和下拉菜单
+          const closeButtons = document.querySelectorAll('[class*="close"], [class*="Close"], [class*="mask"], [class*="overlay"]');
+          for (const btn of closeButtons) {
+            (btn as HTMLElement).click();
+          }
+          // 点击页面空白处关闭下拉菜单
+          document.body.click();
+        });
+        await page.waitForTimeout(500);
+      } catch { /* ignore */ }
+
+      // 切换到图文 tab
+      console.log('[XHS] 切换到图文 tab...');
+      // 用 evaluate 直接找文本是"上传图文"的元素并点击
+      await page.evaluate(() => {
+        const elements = document.querySelectorAll('div, span, a, button');
+        for (const el of elements) {
+          if (el.textContent?.trim() === '上传图文') {
+            (el as HTMLElement).click();
+            break;
+          }
+        }
+      });
+      console.log('[XHS] 已点击"上传图文"tab');
+      await page.waitForTimeout(1000);
+
       // 1. 上传图片
       console.log(`[XHS] 上传 ${params.images.length} 张图片...`);
       await this.uploadImages(page, params.images);
@@ -256,66 +305,122 @@ export class XhsPublisher {
       console.log('[XHS] 点击发布...');
       await page.waitForTimeout(1000);
 
-      // 尝试多种选择器找到发布按钮
-      const publishSelectors = [
-        'button:has-text("发布")',
-        'button:has-text("Publish")',
-        '[class*="publish"] button',
-        'button[class*="submit"]',
-        'button[type="submit"]',
-        'button.css-k9b0nd', // 小红书特定类名
-      ];
+      // 找发布按钮（右下角红色的"发布"按钮）
+      console.log('[XHS] 查找发布按钮...');
 
-      let publishBtn = null;
-      for (const selector of publishSelectors) {
-        try {
-          publishBtn = await page.$(selector);
-          if (publishBtn) {
-            console.log(`[XHS] 找到发布按钮: ${selector}`);
-            break;
+      // 先关闭话题标签下拉菜单
+      console.log('[XHS] 关闭话题下拉菜单...');
+      try {
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(300);
+        // 点击标题区域关闭下拉菜单
+        const titleInput = await page.$('input[placeholder*="标题"], input[class*="title"], #title');
+        if (titleInput) {
+          await titleInput.click();
+          await page.waitForTimeout(300);
+        }
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(500);
+      } catch { /* ignore */ }
+
+      // 使用 page.mouse.click 点击发布按钮（更接近真实用户操作）
+      console.log('[XHS] 等待发布按钮...');
+      try {
+        // 等待页面加载
+        await page.waitForTimeout(3000);
+
+        // 尝试点击发布按钮
+        const btnRect = await page.evaluate(() => {
+          // 方法1: 用小红书特定选择器
+          const btn = document.querySelector('.publish-page-publish-btn button.bg-red');
+          if (btn) {
+            const rect = btn.getBoundingClientRect();
+            return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
           }
-        } catch { /* ignore */ }
-      }
 
-      if (publishBtn) {
-        await publishBtn.click();
-        console.log('[XHS] 已点击发布按钮');
+          // 方法2: 用文本匹配找最后一个"发布"按钮
+          const buttons = Array.from(document.querySelectorAll('button'));
+          for (let i = buttons.length - 1; i >= 0; i--) {
+            const text = buttons[i].textContent?.trim();
+            if (text === '发布') {
+              const rect = buttons[i].getBoundingClientRect();
+              return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+            }
+          }
+          return null;
+        });
 
-        // 等待发布完成
-        await page.waitForTimeout(5000);
+        if (btnRect) {
+          // 用 page.mouse.click 模拟真实鼠标点击
+          await page.mouse.click(btnRect.x, btnRect.y);
+          console.log(`[XHS] 已点击发布按钮（位置: ${btnRect.x}, ${btnRect.y}）`);
+        } else {
+          // 发布按钮找不到，尝试保存草稿
+          console.warn('[XHS] 未找到发布按钮，尝试保存草稿...');
+          const saveRect = await page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll('button'));
+            for (const btn of buttons) {
+              const text = btn.textContent?.trim();
+              if (text && text.includes('暂存')) {
+                const rect = btn.getBoundingClientRect();
+                return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+              }
+            }
+            return null;
+          });
+
+          if (saveRect) {
+            await page.mouse.click(saveRect.x, saveRect.y);
+            console.log(`[XHS] 已点击暂存按钮（位置: ${saveRect.x}, ${saveRect.y}）`);
+            await page.waitForTimeout(2000);
+            return {
+              success: true,
+              noteUrl: undefined,
+            };
+          }
+
+          return {
+            success: false,
+            error: '未找到发布按钮',
+          };
+        }
+
+        // 记录点击前的 URL
+        const urlBefore = page.url();
+        console.log(`[XHS] 点击前 URL: ${urlBefore}`);
+
+        // 等待发布完成（给用户观察时间）
+        console.log('[XHS] 等待发布完成，请观察页面...');
+        await page.waitForTimeout(15000);
 
         // 保存发布后的截图
         const afterScreenshotPath = path.join(screenshotDir, `after-publish-${Date.now()}.png`);
         await page.screenshot({ path: afterScreenshotPath, fullPage: true });
         console.log(`[XHS] 发布后截图: ${afterScreenshotPath}`);
 
-        // 检查是否发布成功
-        const url = page.url();
-        console.log(`[XHS] 发布后 URL: ${url}`);
+        // 检查是否发布成功（URL 必须发生变化）
+        const urlAfter = page.url();
+        console.log(`[XHS] 发布后 URL: ${urlAfter}`);
 
-        if (!url.includes('login')) {
-          // 尝试获取笔记链接
+        if (urlAfter !== urlBefore && !urlAfter.includes('login')) {
           const noteUrl = await this.extractNoteUrl(page);
-
           return {
             success: true,
             noteUrl,
           };
+        } else {
+          return {
+            success: false,
+            error: '发布按钮已点击，但页面未跳转，可能发布失败',
+          };
         }
-      } else {
-        console.warn('[XHS] 未找到发布按钮，打印所有按钮...');
-        const allButtons = await page.$$('button');
-        console.log(`[XHS] 找到 ${allButtons.length} 个按钮`);
-        for (const btn of allButtons) {
-          const text = await btn.textContent();
-          const className = await btn.getAttribute('class');
-          console.log(`[XHS] 按钮: "${text}", class: ${className}`);
-        }
+      } catch {
+        console.warn('[XHS] 未找到发布按钮');
       }
 
       return {
         success: false,
-        error: '发布失败，未找到发布按钮或页面异常',
+        error: '未找到发布按钮',
       };
 
     } catch (err) {

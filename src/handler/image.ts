@@ -32,6 +32,19 @@ const pendingXhsPublish = new Map<string, {
 }>();
 
 /**
+ * 处理小红书发布确认（保留函数签名，但不再使用）
+ */
+export async function handleXhsConfirm(
+  channel: LarkChannel,
+  chatId: string,
+  userId: string,
+  messageId: string
+): Promise<void> {
+  // 这个函数不再需要，因为内容直接发送给用户
+  await channel.send(chatId, { text: '内容已直接发送，无需确认。' }, { replyTo: messageId });
+}
+
+/**
  * 用正则匹配用户对图片的意图
  */
 function parseImageIntent(query: string): { action: string; folder: string; fileName: string } {
@@ -107,65 +120,23 @@ export async function handlePendingImageEditResponse(
   if (pendingXhsPublish.has(userId)) {
     const pending = pendingXhsPublish.get(userId)!;
 
-    if (/^(确认|发布|ok|yes|是|xhs_confirm)/i.test(query)) {
+    if (/^(确认|发布|ok|yes|是|xhs_confirm|复制)/i.test(query)) {
+      // 格式化内容供用户复制
+      const tagsText = pending.tags.map(t => `#${t}`).join(' ');
+      const fullContent = `${pending.content}\n\n${tagsText}`;
+
+      // 分开发送标题和正文，方便复制
       await channel.send(msg.chatId, {
-        text: `正在准备发布到小红书...`,
+        text: `📌 标题：\n${pending.title}`,
       }, { replyTo: msg.messageId });
 
-      try {
-        const { XhsPublisher } = await import('../xhs');
-        const publisher = new XhsPublisher();
-        await publisher.init();
+      await channel.send(msg.chatId, {
+        text: `📝 正文：\n${fullContent}`,
+      }, { replyTo: msg.messageId });
 
-        // 直接尝试登录（如果已登录会自动跳过）
-        console.log(`[${userId}] 启动登录流程`);
-        await channel.send(msg.chatId, {
-          text: `请在弹出的浏览器窗口中扫码登录小红书...\n（已登录会自动跳过）`,
-        }, { replyTo: msg.messageId });
-
-        const loginResult = await publisher.login();
-        if (!loginResult.success) {
-          await publisher.close();
-          await channel.send(msg.chatId, {
-            text: `❌ 登录失败：${loginResult.error}\n要再试一次吗？`,
-          }, { replyTo: msg.messageId });
-          pendingXhsPublish.delete(userId);
-          return true;
-        }
-        console.log(`[${userId}] 登录成功，开始发布`);
-
-        // 发布
-        await channel.send(msg.chatId, {
-          text: `登录成功，正在发布...`,
-        }, { replyTo: msg.messageId });
-
-        const result = await publisher.publish({
-          title: pending.title,
-          content: pending.content,
-          images: pending.images,
-          tags: pending.tags,
-        });
-
-        await publisher.close();
-
-        if (result.success) {
-          const replyLines = [
-            `✅ 小红书发布成功！`,
-            result.noteUrl ? `链接：${result.noteUrl}` : '',
-          ].filter(Boolean).join('\n');
-          await channel.send(msg.chatId, { text: replyLines }, { replyTo: msg.messageId });
-        } else {
-          await channel.send(msg.chatId, {
-            text: `❌ 发布失败：${result.error}\n要再试一次吗？`,
-          }, { replyTo: msg.messageId });
-        }
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        console.error(`[${userId}] 小红书发布失败:`, errMsg);
-        await channel.send(msg.chatId, {
-          text: `❌ 发布失败：${errMsg}`,
-        }, { replyTo: msg.messageId });
-      }
+      await channel.send(msg.chatId, {
+        text: `图片已保存在本地，发布时选择对应图片即可。`,
+      }, { replyTo: msg.messageId });
 
       pendingXhsPublish.delete(userId);
       return true;
@@ -194,7 +165,7 @@ export async function handlePendingImageEditResponse(
     const command = genMatch[1];
     const overlayText = genMatch[2]?.trim() || '';
 
-    // 小红书发布（特殊处理）
+    // 小红书发布（直接生成内容，不需要确认）
     if (command === '5' || /小红书发布|xhs/i.test(command)) {
       await handleXhsPublish(channel, msg, pending.buffer, pending.analysis);
       pendingImageEdit.delete(userId);
@@ -567,44 +538,23 @@ async function handleXhsPublish(
       coverImage = imageBuffer;
     }
 
-    // 4. 发送预览给用户
-    const previewText = [
-      `📝 小红书笔记预览`,
-      ``,
-      `📌 标题：${content.title}`,
-      ``,
-      `📄 正文：`,
-      content.content.substring(0, 200) + (content.content.length > 200 ? '...' : ''),
-      ``,
-      `🏷️ 标签：${content.tags.map(t => `#${t}`).join(' ')}`,
-      ``,
-      `---`,
-    ].join('\n');
+    // 4. 直接发送标题和正文
+    const tagsText = content.tags.map(t => `#${t}`).join(' ');
 
     // 发送封面预览图
     await channel.send(chatId, {
       image: { source: coverImage },
     }, { replyTo: msg.messageId });
 
-    // 发送内容预览（带按钮）
-    await larkService.sendInteractiveMessage(
-      chatId,
-      '📝 小红书笔记预览',
-      previewText,
-      [
-        { text: '✅ 确认发布', value: 'xhs_confirm', type: 'primary' },
-        { text: '❌ 取消', value: 'xhs_cancel', type: 'danger' },
-      ],
-      msg.messageId,
-    );
+    // 发送标题
+    await channel.send(chatId, {
+      text: content.title,
+    }, { replyTo: msg.messageId });
 
-    // 5. 存储待发布状态
-    pendingXhsPublish.set(userId, {
-      title: content.title,
-      content: content.content,
-      tags: content.tags,
-      images: [coverImage, imageBuffer], // 封面图 + 原图
-    });
+    // 发送正文+标签
+    await channel.send(chatId, {
+      text: `${content.content}\n\n${tagsText}`,
+    }, { replyTo: msg.messageId });
 
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);

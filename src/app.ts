@@ -1,6 +1,6 @@
 import { createLarkChannel, LoggerLevel } from '@larksuiteoapi/node-sdk';
 import { config } from './config';
-import { handleMessage, initRootFolder } from './handler';
+import { handleMessage, handleCardAction, initRootFolder } from './handler';
 import { startScheduler } from './scheduler';
 import { startOAuthServer } from './oauth-server';
 
@@ -22,6 +22,11 @@ async function main() {
     // 消息处理
     channel.on('message', async (msg) => {
         await handleMessage(channel, msg);
+    });
+
+    // 卡片按钮点击处理
+    channel.on('cardAction', async (evt) => {
+        await handleCardAction(channel, evt);
     });
 
     // 启动定时任务

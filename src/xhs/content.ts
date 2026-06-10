@@ -108,7 +108,7 @@ ${productInfo.description ? `- 产品描述：${productInfo.description}` : ''}
     return {
       title: (data.title || productInfo.category).substring(0, 20),
       content: (data.content || '').substring(0, 1000),
-      tags: Array.isArray(data.tags) ? data.tags.slice(0, 8) : [],
+      tags: Array.isArray(data.tags) ? data.tags.slice(0, 8).map((t: string) => t.replace(/^#+/, '')) : [],
     };
   } catch (err) {
     console.error('[XHS Content] 解析失败:', err);
