@@ -23,7 +23,7 @@ describe("pThrottle", () => {
     // 最关键的断言：最后一次（最完整的）调用必须被执行
     assert.ok(
       calls.includes("如有什么我可以帮忙的"),
-      `最后一次调用不应被丢弃，实际执行的调用: ${JSON.stringify(calls)}`
+      `最后一次调用不应被丢弃，实际执行的调用: ${JSON.stringify(calls)}`,
     );
   });
 
@@ -44,7 +44,7 @@ describe("pThrottle", () => {
     // 最后一次调用 "text-10" 必须被执行
     assert.ok(
       results.includes("text-10"),
-      `最终文本 "text-10" 不应丢失，实际结果: ${JSON.stringify(results)}`
+      `最终文本 "text-10" 不应丢失，实际结果: ${JSON.stringify(results)}`,
     );
   });
 

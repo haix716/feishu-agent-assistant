@@ -4,15 +4,15 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-const SETTINGS_PATH = path.resolve(
-  __dirname,
-  "../.claude/settings.local.json"
-);
+const SETTINGS_PATH = path.resolve(__dirname, "../.claude/settings.local.json");
 const TMP_DIR = path.resolve(__dirname, "../.tmp-test");
 
 // ── helpers ──────────────────────────────────────────────────────────
 
-function run(cmd: string, opts?: { cwd?: string }): { stdout: string; exitCode: number } {
+function run(
+  cmd: string,
+  opts?: { cwd?: string },
+): { stdout: string; exitCode: number } {
   try {
     const stdout = execSync(cmd, {
       encoding: "utf-8",
@@ -43,7 +43,10 @@ describe("Hook 配置结构", () => {
   });
 
   it("包含 PostToolUse 配置", () => {
-    assert.ok(Array.isArray(settings.hooks?.PostToolUse), "PostToolUse 应为数组");
+    assert.ok(
+      Array.isArray(settings.hooks?.PostToolUse),
+      "PostToolUse 应为数组",
+    );
     assert.ok(settings.hooks.PostToolUse.length > 0, "PostToolUse 不应为空");
   });
 
@@ -52,7 +55,7 @@ describe("Hook 配置结构", () => {
     assert.equal(hook.matcher, "Write|Edit");
     assert.ok(
       hook.hooks[0].command.includes("prettier"),
-      "命令应包含 prettier"
+      "命令应包含 prettier",
     );
   });
 
@@ -66,7 +69,7 @@ describe("Hook 配置结构", () => {
     assert.equal(hook.matcher, "Write|Edit");
     assert.ok(
       hook.hooks[0].command.includes("security-check"),
-      "命令应包含 security-check"
+      "命令应包含 security-check",
     );
   });
 });
@@ -161,7 +164,7 @@ describe("PreToolUse: ESLint 拦截", () => {
     assert.notEqual(exitCode, 0, "有 warning 时 --max-warnings 0 应返回非零");
     assert.ok(
       stdout.includes("no-explicit-any"),
-      "应报告 no-explicit-any warning"
+      "应报告 no-explicit-any warning",
     );
   });
 });

@@ -4,6 +4,7 @@ import {
   extractFeishuDocLinks,
   formatFileList,
   parseFileCommand,
+  stripAtMention,
 } from "../util";
 import { ToolManager, GetTimeTool, SearchDocTool } from "../tools";
 import { searchImages } from "../rag";
@@ -21,11 +22,6 @@ const conversations = new Map<string, ChatMessage[]>();
 
 /** 每用户并发锁 */
 const running = new Map<string, boolean>();
-
-/** 清理群聊中的 @mention 占位符 */
-function stripAtMention(text: string): string {
-  return text.replace(/@_user_\d+\s*/g, "").trim();
-}
 
 /** 获取上下文信息（用户名、群名） */
 async function fetchContext(

@@ -1,10 +1,6 @@
 import cron from "node-cron";
 import { larkService } from "./lark";
 import { config } from "./config";
-import {
-  generateDailyInsightSummary,
-  generateDailyPushElements,
-} from "./metacognition";
 
 /** 匹配 {yyyyMMdd}(待处理) 格式的文件夹名 */
 const PENDING_FOLDER_PATTERN = /^\{(\d{8})\}\(待处理\)$/;
@@ -22,42 +18,7 @@ export function startScheduler(): void {
   // 每日洞察推送已移至元认知系统（metacognition 项目负责推送）
   // bot 不再重复推送，避免用户收到两条日报
 
-  console.log(
-    `📅 定时任务已启动（每天 02:00 清理空文件夹）`,
-  );
-}
-
-/**
- * 推送每日洞察摘要到飞书（卡片消息格式）
- */
-async function pushDailyInsight(): Promise<void> {
-  try {
-    const userId = config.dailyPush.userId;
-    if (!userId) {
-      console.log("⚠️ 未配置 DAILY_PUSH_USER_ID，跳过每日推送");
-      return;
-    }
-
-    const elements = generateDailyPushElements();
-    if (!elements || elements.length === 0) {
-      console.log("⚠️ 无洞察数据，跳过推送");
-      return;
-    }
-
-    const date = new Date().toISOString().split("T")[0];
-    const success = await larkService.sendCardMessage(
-      userId,
-      `🧠 元认知日报 ${date}`,
-      elements,
-    );
-    if (success) {
-      console.log("✅ 每日洞察推送成功");
-    } else {
-      console.error("❌ 每日洞察推送失败");
-    }
-  } catch (err) {
-    console.error("❌ 每日洞察推送异常:", err);
-  }
+  console.log(`📅 定时任务已启动（每天 02:00 清理空文件夹）`);
 }
 
 /**

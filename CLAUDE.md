@@ -33,31 +33,61 @@ npm run lint            # 检查代码规范
 src/
 ├── app.ts           # 入口：createLarkChannel + Channel SDK
 ├── config.ts        # 环境变量配置
-├── ai.ts            # AI API 封装（OpenAI SDK，流式 + 图片理解）
-├── lark.ts          # 飞书文件/文档操作封装（Client）
-├── util.ts          # 工具函数（正则、文件解析）
+├── ai.ts            # AI API 封装（OpenAI SDK 单例，流式 + 图片理解）
+├── util.ts          # 工具函数（正则、文件解析、时间戳、@mention 清理）
 ├── rag.ts           # 本地图片搜索
 ├── oauth.ts         # OAuth 登录
-├── oauth-server.ts  # OAuth 回调服务器
-├── scheduler.ts     # 定时任务
+├── oauth-server.ts  # OAuth 回调服务器（支持多用户并发）
+├── scheduler.ts     # 定时任务（每天 02:00 清理空文件夹）
+├── metacognition.ts # 元认知系统（日报、反馈记录）
+├── lark/            # 飞书服务（按职责拆分）
+│   ├── client.ts        # Client 初始化 + larkClient 单例
+│   ├── user.ts          # 用户/群信息查询
+│   ├── file.ts          # 文件/文档/云盘操作
+│   ├── message.ts       # 消息发送（文本/交互/卡片）
+│   ├── todo.ts          # 待办事项
+│   └── index.ts         # larkService facade（向后兼容）
 ├── handler/         # 消息处理（按职责拆分）
 │   ├── index.ts         # re-export（对外接口）
 │   ├── router.ts        # 消息分类 + 分发
 │   ├── conversation.ts  # 对话历史、AI 回复、命令处理
-│   ├── image.ts         # 图片消息 + 图片生成
+│   ├── image/           # 图片处理（按职责拆分）
+│   │   ├── state.ts         # 共享状态（pending Maps）
+│   │   ├── save.ts          # 图片下载、分析、保存
+│   │   ├── generation.ts    # 图片生成编排（穿戴/商品/封面）
+│   │   ├── detail-suite.ts  # 详情图套件（8张）
+│   │   ├── xhs.ts           # 小红书内容发布
+│   │   └── index.ts         # re-export
 │   ├── file.ts          # 文件/音视频/二进制/文档链接
 │   └── folder.ts        # 飞书云盘文件夹管理
-├── tools/           # 工具调用（GetTimeTool、SearchDocTool）
-└── image-gen/       # 图片生成（v2.4.0）
-    ├── index.ts
-    ├── analyzer.ts       # 图片分析 + 提示词生成
-    ├── router.ts         # 场景路由（穿戴/商品/封面）
-    ├── prompt-builder.ts # 提示词模板库
-    └── providers/
-        ├── provider.ts   # ImageProvider 接口
-        ├── replicate.ts  # Replicate API（Try-On + 通用生图）
-        ├── jimeng.ts     # 即梦 API（商品图/封面）
-        └── libtv.ts      # LibTV CLI（Seedream/Midjourney）
+├── tools/           # AI 工具调用
+│   ├── tool.ts          # Tool 基类 + ToolManager
+│   ├── get-time.ts      # 获取当前时间
+│   └── search-doc.ts    # 本地文件搜索
+├── image-gen/       # 图片生成
+│   ├── index.ts
+│   ├── analyzer.ts       # 图片分析（共享 ai.ts 的 OpenAI 客户端）
+│   ├── router.ts         # 场景路由 + Provider 选择
+│   ├── prompt-builder.ts # 提示词模板库
+│   ├── text-overlay.ts   # 文字叠加（sharp）
+│   ├── providers/
+│   │   ├── provider.ts   # ImageProvider 接口 + 类型定义
+│   │   ├── replicate.ts  # Replicate API（Try-On + Flux）
+│   │   ├── jimeng.ts     # 即梦 CLI（商品图/封面）
+│   │   ├── libtv.ts      # LibTV CLI（Seedream/Midjourney）
+│   │   └── comfyui.ts    # ComfyUI 本地服务
+│   └── detail-suite/     # 详情图套件（银饰产品 8 张图）
+│       ├── index.ts
+│       ├── types.ts
+│       ├── analyzer.ts       # 产品分析
+│       ├── orchestrator.ts   # 编排 8 张图并行生成
+│       ├── prompts.ts        # 提示词生成
+│       ├── style-config.ts   # 品牌风格配置
+│       └── template-manager.ts # 模板图缓存管理
+└── xhs/            # 小红书模块
+    ├── index.ts        # 内容生成入口
+    ├── content.ts      # 标题/正文/标签生成
+    └── publisher.ts    # 发布到小红书
 ```
 
 核心流程：`用户消息 → Channel SDK → handler → AI stream → channel.stream() 流式更新`
@@ -65,6 +95,7 @@ src/
 ## 图片处理功能
 
 用户发送图片时，智能体会：
+
 1. 下载图片
 2. 使用 MiMo 模型分析图片内容
 3. 保存到本地文件夹：`{IMAGE_SAVE_DIR}/{日期}/`
@@ -72,11 +103,13 @@ src/
 5. 回复用户图片内容和保存位置
 
 配置项：
+
 - `IMAGE_SAVE_DIR` — 图片保存目录（默认 `./images`）
 
 ## 图片生成功能（v2.4.0）
 
 用户上传商品图/服装图，智能体自动生成：
+
 1. **穿戴效果图** — 真人模特穿着上传的服装（Replicate Try-On API）
 2. **商品详情图** — 电商风格的商品主图/场景图（即梦 API）
 3. **小红书封面** — 3:4 比例封面图（即梦 API）
@@ -86,6 +119,7 @@ src/
 ## 详情图套件功能（v2.6.0）
 
 用户发送一张银饰图片，智能体自动生成 8 张专业详情图：
+
 1. **主图** — 深色背景正面展示
 2. **角度展示图** — 45° 角立体展示
 3. **细节特写图** — 微距工艺细节
@@ -99,8 +133,6 @@ src/
 模板图首次生成后缓存到 `/Users/hxy/Documents/小红书店铺/详情图/详情图模板/`，后续自动复用
 
 详细设计：`src/image-gen/detail-suite/`
-
-详细设计：`docs/v2.4.0-image-generation.md`
 
 ## 环境变量
 
@@ -119,11 +151,13 @@ src/
 ## Pre-mortem 风险预检
 
 **代码层面**（自动化）：
+
 - commit 时自动运行 `scripts/premortem.sh staged`
 - 扫描：硬编码密钥、缺少错误处理、并发风险、资源泄漏、API 调用风险
 - 高风险阻塞提交，中风险给提示不阻塞
 
 **设计层面**（Claude 主动）：
+
 - 开始新功能前，Claude 应主动做 pre-mortem 分析：
   1. 这个功能可能在哪失败？
   2. 有哪些边界情况没覆盖？
@@ -135,18 +169,18 @@ src/
 
 以下规则由 `scripts/quality-gate.sh` 自动执行，不需要人工检查：
 
-| 检查项 | commit 时 | push 时 | 说明 |
-|--------|-----------|---------|------|
-| 敏感信息扫描 | ✅ | ✅ | API key、token、密码、媒体文件 |
-| 禁止文件检测 | ✅ | ✅ | .claude/、.env、.pem、node_modules/ |
-| Pre-mortem 风险预检 | ✅ | — | 风险模式检测（高风险阻塞） |
-| ESLint error | ✅ | ✅ | 0 error 才能通过 |
-| Commit message 格式 | ✅ | — | `<type>(<scope>): <description>` |
-| 测试覆盖检查 | — | ✅ | 缺测试给警告，不阻塞 |
-| 全量测试 | — | ✅ | 所有测试必须通过 |
-| 日记检查 | — | ✅ | 不存在则自动创建骨架 |
-| Memory 新鲜度 | — | ✅ | 超 7 天自动更新 project.md |
-| 版本一致性 | — | ✅ | package.json == CHANGELOG.md |
+| 检查项              | commit 时 | push 时 | 说明                                |
+| ------------------- | --------- | ------- | ----------------------------------- |
+| 敏感信息扫描        | ✅        | ✅      | API key、token、密码、媒体文件      |
+| 禁止文件检测        | ✅        | ✅      | .claude/、.env、.pem、node_modules/ |
+| Pre-mortem 风险预检 | ✅        | —       | 风险模式检测（高风险阻塞）          |
+| ESLint error        | ✅        | ✅      | 0 error 才能通过                    |
+| Commit message 格式 | ✅        | —       | `<type>(<scope>): <description>`    |
+| 测试覆盖检查        | —         | ✅      | 缺测试给警告，不阻塞                |
+| 全量测试            | —         | ✅      | 所有测试必须通过                    |
+| 日记检查            | —         | ✅      | 不存在则自动创建骨架                |
+| Memory 新鲜度       | —         | ✅      | 超 7 天自动更新 project.md          |
+| 版本一致性          | —         | ✅      | package.json == CHANGELOG.md        |
 
 - pre-commit（<5s）：安全 + lint + commit message
 - pre-push（完整）：安全 + 测试覆盖 + 全量测试 + 日记 + memory + 版本
@@ -158,15 +192,15 @@ src/
 
 ### 信息归属
 
-| 信息 | 真相源 | 引用位置 | 更新方式 |
-|------|--------|----------|----------|
-| 版本号 | `package.json` | CHANGELOG.md、config.ts | version-bump.sh |
-| 发布记录 | `CHANGELOG.md` | Obsidian（引用） | version-bump.sh |
-| 项目状态 | `git log` | memory/project.md | update-memory.sh |
-| 功能描述 | `CLAUDE.md` | README.md（引用） | 手动 |
-| 用户偏好 | `memory/user.md` | — | 手动 |
-| 经验教训 | `memory/feedback.md` | — | 手动 |
-| 外部资源 | `memory/reference.md` | — | 手动 |
+| 信息     | 真相源                | 引用位置                | 更新方式         |
+| -------- | --------------------- | ----------------------- | ---------------- |
+| 版本号   | `package.json`        | CHANGELOG.md、config.ts | version-bump.sh  |
+| 发布记录 | `CHANGELOG.md`        | Obsidian（引用）        | version-bump.sh  |
+| 项目状态 | `git log`             | memory/project.md       | update-memory.sh |
+| 功能描述 | `CLAUDE.md`           | README.md（引用）       | 手动             |
+| 用户偏好 | `memory/user.md`      | —                       | 手动             |
+| 经验教训 | `memory/feedback.md`  | —                       | 手动             |
+| 外部资源 | `memory/reference.md` | —                       | 手动             |
 
 ### 禁止
 
@@ -192,39 +226,47 @@ src/
 - CHANGELOG.md 由 version-bump.sh 自动更新
 
 **版本一致性检查（push 时自动执行）**：
+
 - `scripts/quality-gate.sh push` 会检查 package.json 版本 == CHANGELOG.md 最新版本
 - 不一致时阻塞 push
 
 **发版后手动操作**：
+
 1. 更新飞书开发者后台的智能体应用版本号
 2. 同步 Obsidian 版本记录（如果需要）
 
 ## 指令规范
 
 **重要任务**（多文件、新功能、架构决策）：
+
 - 必须用结构化 Prompt（五部分交互契约：现状、目标、示例、约束、方法）
 - 不允许"直接做"、"看看"等无上下文指令
 
 **简单任务**（查看、确认、小修改）：
+
 - 可以简短，但必须说明"做什么"+"在哪"
 - 示例：✅ "看看 comfyui.ts 的 lint 错误" ❌ "看看"
 
 **禁止**：
+
 - 无上下文指令："直接做"、"看看"、"改一下"
 - 必须指明对象和目标
 
 ## 上下文管理
 
 **任务切换时**：
+
 - 先 `/clear` 或 `/compact` 清理上下文
 - 发现 memory 过时：立即更新，不等 quality gate 提醒
 
 **功后自动沉淀**：
+
 - 完成功能后：更新相关 memory 文件
 - 修复 bug 后：记录根因和修复方案到 memory
 - 重大决策后：记录决策理由到 Obsidian
 
 **Memory 新鲜度检查（push 时自动执行）**：
+
 - MEMORY.md 超过 7 天未更新 → 警告
 - Changelog 与 commit 不同步 → 警告
 
@@ -241,15 +283,18 @@ src/
 ## 协作模式
 
 **晓燕给方向，Claude 给方案：**
+
 - 晓燕描述问题和期望效果，不规定实现方式
 - Claude 出 2-3 个方案 + 优劣对比，晓燕选
 - 选定后 Claude 全栈交付（代码 + 测试 + 文档 + 安全检查）
 
 **并行探索：**
+
 - 有多个可行方案时，用 worktree 同时实现
 - 看结果选，不凭想象选
 
 **后台持续改进：**
+
 - 安全扫描、代码质量、文档同步 — 不等晓燕发现
 - 主动提 PR，晓燕只需要 review
 
@@ -258,11 +303,13 @@ src/
 当需要并行开发 3+ 个独立任务时，使用 Agent View + Background Sessions。
 
 ### 角色定义
+
 - **PM（主 agent）**：需求分析、任务拆分、写 task brief、监控进度、合并交付
 - **Developer（`.claude/subagents/developer.md`）**：写代码、跑测试、提交
 - **Reviewer（`.claude/subagents/reviewer.md`）**：审查代码，只读不写
 
 ### 工作流程
+
 1. PM 理解需求，拆分为独立任务
 2. PM 为每个任务写 task brief（目标、当前代码、改动要求、验收标准）
 3. 通过 Agent 工具派发 developer agent 并行执行
@@ -271,17 +318,20 @@ src/
 6. 合并分支，更新文档
 
 ### Task Brief 必须包含
+
 - 一句话目标
 - 具体改动哪个文件
 - 不要动哪些文件（其他 agent 负责）
 - 验收标准（lint 0 error、测试通过、功能正常）
 
 ### 质量门禁（代码强制）
+
 - PreToolUse hook：`scripts/quality-gate.sh commit`（安全 + lint）
 - PostToolUse hook：`scripts/lint-check.sh`（单文件 lint）
 - SubagentStop hook：`scripts/quality-gate.sh agent`（lint + test + 工作区检查）
 
 ### 并行原则
+
 - 独立任务并行，有依赖的串行
 - 瓶颈任务优先启动
 - 不要信任 agent 的产出，全部要验证

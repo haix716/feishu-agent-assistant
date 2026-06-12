@@ -3,7 +3,7 @@ import { config } from "./config";
 import { ToolManager, ToolDefinition } from "./tools";
 import { generateMetacognitionContext } from "./metacognition";
 
-const openai = new OpenAI({
+export const openai = new OpenAI({
   apiKey: config.ai.apiKey,
   baseURL: config.ai.baseURL,
 });

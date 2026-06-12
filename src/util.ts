@@ -2,23 +2,23 @@
  * 清洗文件名：移除路径穿越、特殊字符，防止安全问题
  */
 export function sanitizeFileName(name: string): string {
-  if (!name || !name.trim()) return 'untitled';
+  if (!name || !name.trim()) return "untitled";
 
   let fileName = name
-    .replace(/\.\./g, '')           // 移除 ..
-    .replace(/[/\\]/g, '_')         // 路径分隔符 → 下划线
-    .replace(/[<>:"|?*!@#$()]/g, '_')  // 特殊字符 → 下划线
-    .replace(/\s+/g, '_')           // 空白 → 下划线
-    .replace(/_+/g, '_')            // 合并连续下划线
-    .replace(/^_+|_+$/g, '');       // 去首尾下划线
+    .replace(/\.\./g, "") // 移除 ..
+    .replace(/[/\\]/g, "_") // 路径分隔符 → 下划线
+    .replace(/[<>:"|?*!@#$()]/g, "_") // 特殊字符 → 下划线
+    .replace(/\s+/g, "_") // 空白 → 下划线
+    .replace(/_+/g, "_") // 合并连续下划线
+    .replace(/^_+|_+$/g, ""); // 去首尾下划线
 
-  if (!fileName || fileName === '.') return 'untitled';
+  if (!fileName || fileName === ".") return "untitled";
 
   // 截断超长文件名（保留扩展名）
   if (fileName.length > 255) {
     const ext = getFileExtension(fileName);
     const maxNameLength = 255 - (ext ? ext.length + 1 : 0);
-    fileName = fileName.substring(0, maxNameLength) + (ext ? `.${ext}` : '');
+    fileName = fileName.substring(0, maxNameLength) + (ext ? `.${ext}` : "");
   }
 
   return fileName;
@@ -36,15 +36,15 @@ export function validateFileSize(buffer: Buffer, maxSizeMB: number): boolean {
  */
 export function getFileExtension(fileName: string): string {
   const match = fileName.match(/\.([^.]+)$/);
-  return match ? match[1].toLowerCase() : '';
+  return match ? match[1].toLowerCase() : "";
 }
 
 /**
  * 根据扩展名返回飞书导入目标类型，不支持的返回 null
  */
-export function getImportTargetType(ext: string): 'sheet' | 'docx' | null {
-  if (['xlsx', 'xls', 'csv'].includes(ext)) return 'sheet';
-  if (['docx', 'doc'].includes(ext)) return 'docx';
+export function getImportTargetType(ext: string): "sheet" | "docx" | null {
+  if (["xlsx", "xls", "csv"].includes(ext)) return "sheet";
+  if (["docx", "doc"].includes(ext)) return "docx";
   return null;
 }
 
@@ -76,10 +76,10 @@ export function extractFeishuDocLinks(text: string): FeishuDocLink[] {
  * 解析单个飞书文档 URL，返回类型和 token
  */
 export function parseWikiToken(
-  url: string
+  url: string,
 ): { type: string; token: string } | null {
   const match = url.match(
-    /https?:\/\/(?:[a-zA-Z0-9-]+\.)?(?:feishu\.cn|larksuite\.com)\/(docx|doc|wiki|sheets)\/([a-zA-Z0-9_-]+)(?:[?#][^\s]*)?/
+    /https?:\/\/(?:[a-zA-Z0-9-]+\.)?(?:feishu\.cn|larksuite\.com)\/(docx|doc|wiki|sheets)\/([a-zA-Z0-9_-]+)(?:[?#][^\s]*)?/,
   );
   if (!match) return null;
   return { type: match[1], token: match[2] };
@@ -106,11 +106,13 @@ function formatSize(bytes: number): string {
  * 格式化文件列表为可读文本
  */
 export function formatFileList(files: FileItem[]): string {
-  if (files.length === 0) return '当前群文件夹为空';
+  if (files.length === 0) return "当前群文件夹为空";
 
   const shown = files.slice(0, 10);
-  const lines = shown.map((f, i) => `${i + 1}. ${f.name}（${formatSize(f.size)}）`);
-  let text = `共 ${files.length} 个文件：\n${lines.join('\n')}`;
+  const lines = shown.map(
+    (f, i) => `${i + 1}. ${f.name}（${formatSize(f.size)}）`,
+  );
+  let text = `共 ${files.length} 个文件：\n${lines.join("\n")}`;
   if (files.length > 10) {
     text += `\n... 等共 ${files.length} 个文件`;
   }
@@ -122,11 +124,27 @@ export function formatFileList(files: FileItem[]): string {
  */
 export function parseFileCommand(text: string): string | null {
   // 去掉 @mention 前缀
-  const cleaned = text.replace(/@_user_\d+\s*/g, '').trim();
+  const cleaned = text.replace(/@_user_\d+\s*/g, "").trim();
   const match = cleaned.match(/^读文件\s*(.+)$/);
   if (!match) return null;
   const fileName = match[1].trim();
   return fileName || null;
+}
+
+/** 清理群聊中的 @mention 占位符 */
+export function stripAtMention(text: string): string {
+  return text.replace(/@_user_\d+\s*/g, "").trim();
+}
+
+/** 生成 YYYYMMddHHmmss 格式的时间戳 */
+export function formatTimestamp(date: Date = new Date()): string {
+  return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}${String(date.getHours()).padStart(2, "0")}${String(date.getMinutes()).padStart(2, "0")}${String(date.getSeconds()).padStart(2, "0")}`;
+}
+
+/** 获取今天的日期字符串（yyyy-MM-dd 格式） */
+export function getTodayDate(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
 /**
@@ -136,12 +154,13 @@ export function parseFileCommand(text: string): string | null {
  */
 export function pThrottle<T extends (...args: any[]) => Promise<any>>(
   fn: T,
-  intervalMs: number
+  intervalMs: number,
 ): T {
   let lastCall = 0;
   let pending = false;
   let latestArgs: any[] | null = null;
-  let waiters: Array<{ resolve: (v: any) => void; reject: (e: any) => void }> = [];
+  let waiters: Array<{ resolve: (v: any) => void; reject: (e: any) => void }> =
+    [];
 
   return (async (...args: any[]) => {
     if (pending) {
@@ -155,7 +174,7 @@ export function pThrottle<T extends (...args: any[]) => Promise<any>>(
     const elapsed = now - lastCall;
     if (elapsed < intervalMs) {
       pending = true;
-      await new Promise(r => setTimeout(r, intervalMs - elapsed));
+      await new Promise((r) => setTimeout(r, intervalMs - elapsed));
       pending = false;
     }
 
@@ -172,7 +191,7 @@ export function pThrottle<T extends (...args: any[]) => Promise<any>>(
         // trailing 调用也要遵守间隔
         const elapsed2 = Date.now() - lastCall;
         if (elapsed2 < intervalMs) {
-          await new Promise(r => setTimeout(r, intervalMs - elapsed2));
+          await new Promise((r) => setTimeout(r, intervalMs - elapsed2));
         }
         lastCall = Date.now();
         const trailingResult = await fn(...savedArgs);
@@ -184,4 +203,17 @@ export function pThrottle<T extends (...args: any[]) => Promise<any>>(
 
     return result;
   }) as T;
+}
+
+/** 创建带自动清理的 Map，超过 ttl 毫秒的条目自动删除 */
+export function createTTLMap<K, V>(
+  ttlMs: number,
+): Map<K, V> & { setTTL(key: K, value: V): void } {
+  const map = new Map<K, V>();
+  return Object.assign(map, {
+    setTTL(key: K, value: V) {
+      map.set(key, value);
+      setTimeout(() => map.delete(key), ttlMs);
+    },
+  });
 }

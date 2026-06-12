@@ -4,27 +4,25 @@
  * 用 MiMo 多模态模型分析银饰产品图片，提取详细的产品信息
  */
 
-import OpenAI from 'openai';
-import { config } from '../../config';
-import type { ProductInfo } from './types';
-
-const openai = new OpenAI({
-  apiKey: config.ai.apiKey,
-  baseURL: config.ai.baseURL,
-});
+import { openai } from "../../ai";
+import { config } from "../../config";
+import type { ProductInfo } from "./types";
 
 /**
  * 分析银饰产品图片
  */
-export async function analyzeProduct(base64Image: string): Promise<ProductInfo> {
+export async function analyzeProduct(
+  base64Image: string,
+): Promise<ProductInfo> {
   const response = await openai.chat.completions.create({
     model: config.mimoImageModel,
-    messages: [{
-      role: 'user',
-      content: [
-        {
-          type: 'text',
-          text: `请分析这张银饰产品图片，返回 JSON 格式的结果。不要输出其他内容，只输出 JSON。
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `请分析这张银饰产品图片，返回 JSON 格式的结果。不要输出其他内容，只输出 JSON。
 
 返回格式：
 {
@@ -43,50 +41,59 @@ export async function analyzeProduct(base64Image: string): Promise<ProductInfo> 
 - category 必须是银饰品类之一
 - craftsmanship 必须描述具体的工艺手法
 - designElements 必须描述具体的图案/纹样/形状
-- englishDescription 是最重要的字段——它决定了 AI 能否生成和原图一致的产品。请用英文详细描述产品的每一个可见特征`
-        },
-        {
-          type: 'image_url',
-          image_url: { url: `data:image/jpeg;base64,${base64Image}` },
-        },
-      ],
-    }],
+- englishDescription 是最重要的字段——它决定了 AI 能否生成和原图一致的产品。请用英文详细描述产品的每一个可见特征`,
+          },
+          {
+            type: "image_url",
+            image_url: { url: `data:image/jpeg;base64,${base64Image}` },
+          },
+        ],
+      },
+    ],
     max_completion_tokens: 600,
   });
 
-  const content = response.choices[0]?.message?.content || '';
+  const content = response.choices[0]?.message?.content || "";
 
   try {
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error('无法从 AI 回复中提取 JSON');
+      throw new Error("无法从 AI 回复中提取 JSON");
     }
 
     const data = JSON.parse(jsonMatch[0]);
 
     return {
-      category: data.category || '银饰',
-      material: data.material || '银',
-      color: data.color || '银色',
-      style: data.style || '简约',
-      craftsmanship: data.craftsmanship || 'polished silver',
-      designElements: data.designElements || '',
-      culturalMeaning: data.culturalMeaning || '',
-      englishDescription: data.englishDescription || `A silver ${data.category || 'jewelry'} with ${data.craftsmanship || 'polished'} finish`,
+      category: data.category || "银饰",
+      material: data.material || "银",
+      color: data.color || "银色",
+      style: data.style || "简约",
+      craftsmanship: data.craftsmanship || "polished silver",
+      designElements: data.designElements || "",
+      culturalMeaning: data.culturalMeaning || "",
+      englishDescription:
+        data.englishDescription ||
+        `A silver ${data.category || "jewelry"} with ${data.craftsmanship || "polished"} finish`,
     };
   } catch (parseErr) {
-    console.error('[DetailSuite] 解析产品分析失败:', parseErr, '\n原始回复:', content);
+    console.error(
+      "[DetailSuite] 解析产品分析失败:",
+      parseErr,
+      "\n原始回复:",
+      content,
+    );
 
     // 降级：用默认值
     return {
-      category: '银饰',
-      material: '银',
-      color: '银色',
-      style: '简约',
-      craftsmanship: 'polished silver',
-      designElements: '',
-      culturalMeaning: '',
-      englishDescription: 'A silver jewelry piece with polished finish on dark background',
+      category: "银饰",
+      material: "银",
+      color: "银色",
+      style: "简约",
+      craftsmanship: "polished silver",
+      designElements: "",
+      culturalMeaning: "",
+      englishDescription:
+        "A silver jewelry piece with polished finish on dark background",
     };
   }
 }

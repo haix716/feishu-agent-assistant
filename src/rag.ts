@@ -1,6 +1,6 @@
-import fs from 'fs';
-import path from 'path';
-import { config } from './config';
+import fs from "fs";
+import path from "path";
+import { config } from "./config";
 
 export interface SearchResult {
   fileName: string;
@@ -36,19 +36,22 @@ export function searchImages(query: string, limit = 10): SearchResult[] {
     const folderPath = path.join(baseDir, folder);
     let files: string[];
     try {
-      files = fs.readdirSync(folderPath).filter((f) =>
-        /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(f)
-      );
+      files = fs
+        .readdirSync(folderPath)
+        .filter((f) => /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(f));
     } catch {
       continue;
     }
 
     for (const file of files) {
       // Remove extension and timestamp prefix for matching
-      const nameWithoutExt = file.replace(/\.[^.]+$/, '');
-      const nameForMatch = nameWithoutExt.replace(/^\d{14}_/, '');
+      const nameWithoutExt = file.replace(/\.[^.]+$/, "");
+      const nameForMatch = nameWithoutExt.replace(/^\d{14}_/, "");
 
-      if (nameForMatch.toLowerCase().includes(queryLower) || nameWithoutExt.toLowerCase().includes(queryLower)) {
+      if (
+        nameForMatch.toLowerCase().includes(queryLower) ||
+        nameWithoutExt.toLowerCase().includes(queryLower)
+      ) {
         results.push({
           fileName: file,
           folder,

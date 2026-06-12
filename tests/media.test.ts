@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { sanitizeFileName } from "../src/util.ts";
-import { larkService } from "../src/lark.ts";
+import { larkService } from "../src/lark/index.ts";
 
 describe("sanitizeFileName", () => {
   it("正常文件名保持不变", () => {
