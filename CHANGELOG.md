@@ -3,6 +3,10 @@
 ## [Unreleased]
 
 ### Added
+
+- **用户互动反馈记录**：对话 handler 在每次 AI 回复后记录用户互动到元认知系统，支持反馈回路
+- **系统能力清单**：metacognition 模块注入灵犀系统已有功能列表，防止 bot 重复设计已有功能
+- **Claude 自记录集成**：metacognition 模块读取最新的 Claude 自记录，让 bot 了解项目历史和前序 Claude 的判断
 - **人机协作升级方案**：从"马鞍模式"（人管 AI 执行）升级为"法拉利模式"（人定方向 AI 全栈交付）
 - **工作风格分析**：基于 7 天协作记录的客观分析，存入 Obsidian
 - **角色重新定义**：晓燕从 PM+开发者 转型为产品创造者，Claude 转型为全栈技术团队
@@ -11,28 +15,33 @@
 - **质量前置策略**：CLAUDE.md 规则 + 自动化 hooks 两层保障，不依赖人工审查
 
 ### Changed
+
 - **小红书发布流程重构**：从自动发布改为直接发送标题和正文给用户手动复制，提高可靠性
 - **卡片按钮处理**：新增 `handleCardAction` 统一处理交互按钮点击
 - **发布器改进**：新增录屏功能、坐标点击方式、关闭弹窗逻辑
 
 ### Fixed
+
 - **标签格式**：去掉 AI 生成的 tags 中 `#` 前缀，避免重复
 - **错误处理**：`handleCardAction` 添加 try-catch，防止异常静默失败
 
 ## [2.5.0] - 2026-06-06
 
 ### Added
+
 - **LibTV Provider**：接入 LiblibAI 官方 CLI（libtv），支持 Seedream/Midjourney 等模型
 - **图片发送**：生成的图片直接发送到聊天框，不再只发文字链接
 - **模型自动匹配**：穿戴效果图用 Seedream 4.6，商品图/封面用 Seedream 4.5
 
 ### Changed
+
 - **Provider 优先级**：LibTV > 即梦 > Replicate
 - **README 更新**：新增 LibTV CLI 安装说明，删除过时的 README.zh.md
 
 ## [2.4.1] - 2026-06-05
 
 ### Security
+
 - **API Key 泄露修复**：从 git 历史中清除泄露的 `.claude/settings.json`
 - **安全检查脚本重写**：5 层检测（禁文件、API key 模式、路径、媒体、隐藏目录）
 - **Husky hooks**：pre-commit + pre-push 自动运行安全检查
@@ -40,12 +49,14 @@
 - **密钥轮换**：飞书 app_secret 和 MiMo token 已更换
 
 ### Added
+
 - **软件质量保障体系文档**：四层门禁、质量标准、度量指标
 - **软件安全保障体系文档**：纵深防御、泄露响应流程、Claude Code 特有措施
 
 ## [2.4.0] - 2026-06-05
 
 ### Added
+
 - **图片生成功能**：用户上传图片后可选择生成穿戴效果图、商品图、小红书封面
 - **图片分析器**：MiMo 多模态分析图片内容，自动生成英文提示词
 - **提示词模板库**：穿戴/白底/场景/封面四种模板
@@ -55,38 +66,45 @@
 - **UX 优化**：发图即时反馈、自然语气、简洁回复
 
 ### Changed
+
 - **handler.ts**：新增图片生成流程（分析 → 选项 → 生成 → 保存）
 - **config.ts**：新增 imageGen 配置块（Replicate + 即梦）
 - **消息风格**：从工具式回复改为同事式对话
 
 ### Fixed
+
 - **Replicate API 404**：社区模型需用 `/v1/predictions` + `version` 字段调用
 
 ## [2.3.1] - 2026-06-04
 
 ### Added
+
 - **安全检查脚本**：push 前自动扫描敏感信息（本地路径、API key、媒体文件）
 - **PreToolUse hook**：git push 前自动运行安全检查
 - **gitignore 更新**：添加 images/ 和 src/data/index.json
 
 ### Fixed
+
 - **git 历史清理**：删除误提交的 images/20260604 文件夹
 
 ## [2.3.0] - 2026-06-04
 
 ### Added
+
 - **RAG 搜索功能**：本地图片搜索，支持"搜xxx"指令
 - **多策略搜索**：文件名匹配、描述匹配、标签匹配、分词匹配
 - **搜索结果展示**：文件名 + 相对路径，最多返回 10 个结果
 - **RAG 测试用例**：7 个测试覆盖搜索功能
 
 ### Changed
+
 - **handler.ts**：添加搜索指令处理逻辑
 - **README.md**：添加 RAG 搜索功能说明
 
 ## [2.2.0] - 2026-06-04
 
 ### Added
+
 - **5W1H 需求分析**：完整的小红书店铺运营自动化需求分析
 - **架构设计**：飞书中转站 + 本地 AI + 工具层三层架构
 - **并行开发计划**：RAG、图片生成、视频制作、发布管理四条并行线
@@ -94,12 +112,14 @@
 - **技术栈规划**：ChromaDB、CLIP、GPT-IMG-2、TapNow、剪映 MCP、小红书 MCP
 
 ### Changed
+
 - **README.md**：添加项目定位、5W1H 分析、架构设计、并行开发计划
 - **使用方式**：添加工作流指令和用户操作流程
 
 ## [2.1.0] - 2026-06-04
 
 ### Added
+
 - **本地图片保存**：收到图片自动保存到本地文件夹，不再依赖飞书云盘
 - **本地视频保存**：收到视频自动保存到本地文件夹
 - **图片内容识别**：使用 MiMo 模型分析图片内容，自动生成描述和文件名
@@ -108,18 +128,21 @@
 - **图片分析测试用例**：验证下载、识别、文件名生成功能
 
 ### Changed
+
 - **图片保存方式**：从飞书云盘改为本地文件夹
 - **文件名格式**：`{YYYYMMddHHmmss}_{内容摘要}.jpg`（去掉序号）
 - **图片识别模型**：使用 mimo-v2-omni，支持中文描述
 - **移除飞书云盘依赖**：不再需要 DRIVE_FOLDER_TOKEN
 
 ### Fixed
+
 - **图片识别格式**：修复 MiMo API 的 max_completion_tokens 参数
 - **图片下载 400 错误**：使用 axios 直接调用飞书 API 替代 SDK
 
 ## [2.0.0] - 2026-06-03
 
 ### Added
+
 - **Channel SDK 集成**：使用 createLarkChannel 替换手动 WSClient + EventDispatcher
 - **OpenAI SDK 迁移**：从 Anthropic SDK 迁移到 OpenAI SDK（兼容 MiMo 等模型）
 - **图片理解功能**：新增 analyzeImage 函数，支持 MiMo-V2.5-Omni 多模态分析
@@ -128,6 +151,7 @@
 - **Hooks 质量门禁**：PreToolUse 安全检查 + PostToolUse 自动 lint
 
 ### Changed
+
 - **项目重命名**：claude-feishu-bot → feishu-agent-assistant
 - **架构重构**：
   - app.ts：100 行 → 30 行（createLarkChannel 替换 EventDispatcher）
@@ -140,11 +164,13 @@
 - **listFiles API**：从 drive.file.list 改为 im.v1.chat.file.list
 
 ### Fixed
+
 - **folderToken 一致性**：handleMediaMessage/handleBinaryFile 使用 rootFolderToken
 - **云文档链接正则**：支持子域名（xxx.feishu.cn）和国际版（larksuite.com）
 - **群文件 API**：改用 im.v1.chat.file.list
 
 ### Removed
+
 - `@anthropic-ai/sdk` 依赖
 - `generateCard` 函数（Channel SDK 自动处理）
 - `throttledUpdate` 函数（Channel SDK 内置节流）
@@ -153,6 +179,7 @@
 ## [1.2.0] - 2026-06-02
 
 ### Added
+
 - **图片自动保存**：收到图片自动保存到飞书云盘，自动创建日期文件夹
 - **音视频自动保存**：收到音视频自动上传到飞书云盘
 - **二进制文件导入**：xlsx/docx 通过飞书导入 API 转换后读取内容
@@ -162,6 +189,7 @@
 - 5 个 worktree 并行开发，全部合并到 main
 
 ### Changed
+
 - ChatMessage 类型扩展为支持多模态内容（`string | ContentBlockParam[]`）
 - getResource 函数泛化，支持获取图片和文件
 - 新增 uploadFile、createFolder、getRootFolder 等云盘操作方法
@@ -169,21 +197,25 @@
 ## [1.1.0] - 2026-06-01
 
 ### Added
+
 - Claude Code GitHub Actions workflow：Issue 中 `@claude` 自动触发分析、写测试、修 Bug、提 PR
 - Hooks 自动化测试（prettier + eslint），13 个测试用例全部通过
 
 ### Fixed
+
 - **pThrottle 丢弃最后一次调用**：改为 trailing-edge 策略，确保最后一条内容不丢失
 - **飞书频率限制 (230020) 导致进程崩溃**：捕获限流错误，静默跳过
 - **长文本回复被截断**：流式结束后显式发送完整内容更新卡片
 
 ### Changed
+
 - 节流间隔从 200ms 调整为 1000ms，降低飞书 API 调用频率
 - Git 工作流：实验性改动用 feature 分支，确认后 squash merge 回 main
 
 ## [1.0.0] - 2026-05-31
 
 ### Added
+
 - AI API 流式回复 + 飞书卡片实时更新
 - 群聊支持：@mention 触发，reply 模式回复
 - 私聊支持：直接对话

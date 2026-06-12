@@ -1,10 +1,15 @@
-import { streamAIWithTools, ChatMessage, ChatContext } from '../ai';
-import { config } from '../config';
-import { extractFeishuDocLinks, formatFileList, parseFileCommand } from '../util';
-import { ToolManager, GetTimeTool, SearchDocTool } from '../tools';
-import { searchImages } from '../rag';
-import { larkService } from '../lark';
-import type { LarkChannel, NormalizedMessage } from '@larksuiteoapi/node-sdk';
+import { streamAIWithTools, ChatMessage, ChatContext } from "../ai";
+import { config } from "../config";
+import {
+  extractFeishuDocLinks,
+  formatFileList,
+  parseFileCommand,
+} from "../util";
+import { ToolManager, GetTimeTool, SearchDocTool } from "../tools";
+import { searchImages } from "../rag";
+import { larkService } from "../lark";
+import { recordFeedback } from "../metacognition";
+import type { LarkChannel, NormalizedMessage } from "@larksuiteoapi/node-sdk";
 
 // 初始化工具管理器
 const toolManager = new ToolManager();
@@ -19,23 +24,23 @@ const running = new Map<string, boolean>();
 
 /** 清理群聊中的 @mention 占位符 */
 function stripAtMention(text: string): string {
-  return text.replace(/@_user_\d+\s*/g, '').trim();
+  return text.replace(/@_user_\d+\s*/g, "").trim();
 }
 
 /** 获取上下文信息（用户名、群名） */
 async function fetchContext(
   userId: string,
   chatId: string,
-  chatType: string
+  chatType: string,
 ): Promise<ChatContext> {
   const ctx: ChatContext = { chatType };
 
-  if (chatType === 'group') {
+  if (chatType === "group") {
     const chatInfo = await larkService.getChatInfo(chatId);
     if (chatInfo) ctx.chatName = chatInfo.name;
   }
 
-  if (chatType === 'group') {
+  if (chatType === "group") {
     const memberName = await larkService.getChatMemberName(chatId, userId);
     if (memberName) ctx.userName = memberName;
   }
@@ -50,17 +55,17 @@ async function fetchContext(
 /** 从飞书文档链接获取内容 */
 async function fetchDocLinkContent(
   type: string,
-  token: string
+  token: string,
 ): Promise<string | null> {
   try {
-    if (type === 'docx' || type === 'doc') {
+    if (type === "docx" || type === "doc") {
       const content = await larkService.getDocContent(token);
       if (content) {
         return `📄 飞书文档内容（${type}）：\n${content.slice(0, 10000)}`;
       }
-    } else if (type === 'wiki') {
+    } else if (type === "wiki") {
       const node = await larkService.getWikiNode(token);
-      if (node && node.obj_type === 'docx') {
+      if (node && node.obj_type === "docx") {
         const content = await larkService.getDocContent(node.obj_token);
         if (content) {
           return `📄 飞书知识库文档内容：\n${content.slice(0, 10000)}`;
@@ -68,7 +73,7 @@ async function fetchDocLinkContent(
       }
     }
   } catch (err) {
-    console.error('fetchDocLinkContent failed:', err);
+    console.error("fetchDocLinkContent failed:", err);
   }
   return null;
 }
@@ -78,7 +83,7 @@ async function fetchDocLinkContent(
  */
 export async function handleTextMessage(
   channel: LarkChannel,
-  msg: NormalizedMessage
+  msg: NormalizedMessage,
 ): Promise<void> {
   const userId = msg.senderId;
   const chatId = msg.chatId;
@@ -86,10 +91,10 @@ export async function handleTextMessage(
   const messageId = msg.messageId;
 
   let query = msg.content;
-  if (typeof query !== 'string') return;
+  if (typeof query !== "string") return;
 
   // 群聊：清理 @mention
-  if (chatType === 'group') {
+  if (chatType === "group") {
     query = stripAtMention(query);
   }
 
@@ -105,19 +110,23 @@ export async function handleTextMessage(
         if (content) docParts.push(content);
       }
       if (docParts.length > 0) {
-        query = `${query}\n\n${docParts.join('\n\n')}`;
+        query = `${query}\n\n${docParts.join("\n\n")}`;
       }
     }
 
     // /clear 命令
-    if (query.trim() === '/clear') {
+    if (query.trim() === "/clear") {
       conversations.delete(userId);
-      await channel.send(chatId, { text: '对话已清除 ✅' }, { replyTo: messageId });
+      await channel.send(
+        chatId,
+        { text: "对话已清除 ✅" },
+        { replyTo: messageId },
+      );
       return;
     }
 
     // 群文件指令
-    if (query.trim() === '群文件') {
+    if (query.trim() === "群文件") {
       const files = await larkService.listFiles(chatId);
       const text = formatFileList(files);
       await channel.send(chatId, { text }, { replyTo: messageId });
@@ -127,7 +136,7 @@ export async function handleTextMessage(
     // 读文件指令
     const readFileName = parseFileCommand(query);
     if (readFileName) {
-      const { handleReadFile } = await import('./file');
+      const { handleReadFile } = await import("./file");
       await handleReadFile(channel, msg, readFileName);
       return;
     }
@@ -144,9 +153,10 @@ export async function handleTextMessage(
           text = `🔍 搜索结果："${searchQuery}"\n没有找到相关图片`;
         } else {
           const lines = results.map(
-            (r, i) => `${i + 1}. ${r.fileName.replace(/\.[^.]+$/, '').replace(/^\d{14}_/, '')}\n      📁 ${r.relativePath}`
+            (r, i) =>
+              `${i + 1}. ${r.fileName.replace(/\.[^.]+$/, "").replace(/^\d{14}_/, "")}\n      📁 ${r.relativePath}`,
           );
-          text = `🔍 搜索结果："${searchQuery}"\n找到 ${results.length} 张相关图片：\n\n${lines.join('\n\n')}`;
+          text = `🔍 搜索结果："${searchQuery}"\n找到 ${results.length} 张相关图片：\n\n${lines.join("\n\n")}`;
         }
         await channel.send(chatId, { text }, { replyTo: messageId });
         return;
@@ -155,7 +165,11 @@ export async function handleTextMessage(
 
     // 并发检查
     if (running.get(userId)) {
-      await channel.send(chatId, { text: '上一条回复还在生成中，请稍候...' }, { replyTo: messageId });
+      await channel.send(
+        chatId,
+        { text: "上一条回复还在生成中，请稍候..." },
+        { replyTo: messageId },
+      );
       return;
     }
 
@@ -171,7 +185,7 @@ export async function handleTextMessage(
     const history = conversations.get(userId)!;
 
     // 追加用户消息
-    history.push({ role: 'user', content: query });
+    history.push({ role: "user", content: query });
 
     // 裁剪历史
     while (history.length > config.maxTurns * 2) {
@@ -182,21 +196,45 @@ export async function handleTextMessage(
 
     // 流式输出
     console.log(`[${userId}] 调用 AI API...`);
-    let fullText = '';
-    await channel.stream(chatId, {
-      markdown: async (s) => {
-        let lastText = '';
-        fullText = await streamAIWithTools(history, (text) => {
-          if (text !== lastText) {
-            s.setContent(text);
-            lastText = text;
-          }
-        }, ctx, toolManager);
+    let fullText = "";
+    await channel.stream(
+      chatId,
+      {
+        markdown: async (s) => {
+          let lastText = "";
+          fullText = await streamAIWithTools(
+            history,
+            (text) => {
+              if (text !== lastText) {
+                s.setContent(text);
+                lastText = text;
+              }
+            },
+            ctx,
+            toolManager,
+          );
+        },
       },
-    }, { replyTo: messageId });
+      { replyTo: messageId },
+    );
     console.log(`[${userId}] AI 回复完成，长度: ${fullText.length}`);
 
-    history.push({ role: 'assistant', content: fullText });
+    history.push({ role: "assistant", content: fullText });
+
+    // 记录用户反馈到元认知系统
+    try {
+      // 判断反馈类型：用户追问（短消息+对话历史>2轮）= 正面
+      const isFollowUp =
+        history.length > 4 && query.length < 100;
+      recordFeedback(
+        userId,
+        query,
+        fullText,
+        isFollowUp ? "positive" : "neutral",
+      );
+    } catch {
+      // 反馈记录失败不影响主流程
+    }
   } catch (err) {
     console.error(`[${userId}] 错误:`, err);
     const errMsg = `出错了: ${err instanceof Error ? err.message : String(err)}`;
