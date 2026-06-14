@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { config } from "./config";
 import { ToolManager, ToolDefinition } from "./tools";
-import { generateMetacognitionContext } from "./metacognition";
+import { generateMetacognitionContext, retrieveAndAugment } from "./metacognition";
 
 export const openai = new OpenAI({
   apiKey: config.ai.apiKey,
@@ -39,6 +39,10 @@ function buildSystemPrompt(ctx?: ChatContext): string {
     );
   }
 
+  // 灵犀知识库的相关内容会在用户消息里附带（系统已主动检索注入）。
+  systemParts.push(
+    "回答规则：优先基于用户消息里附带的【灵犀知识库检索结果】回答，并引用采集时间。检索没覆盖用户问的，明确说\"灵犀没采集过这个话题\"，补充通识时必须标注\"以下是基于通识的推测，可能不准\"——绝不假装采集过、绝不编造细节或来源、绝不假装调用了工具。",
+  );
   return systemParts.join("\n");
 }
 
@@ -104,6 +108,13 @@ export async function streamAIWithTools(
       content: m.content,
     })),
   ];
+
+  // 主动检索灵犀知识库：把最后一条 user message 用检索结果增强。
+  // 不靠 AI 工具调用——MiMo 用 <tool_call> 文本格式，不兼容 openai tool_calls，调了等于没调。
+  const lastMsg = openaiMessages[openaiMessages.length - 1];
+  if (lastMsg && lastMsg.role === "user" && typeof lastMsg.content === "string") {
+    lastMsg.content = retrieveAndAugment(lastMsg.content, 5);
+  }
 
   // 最多 2 轮工具调用
   for (let round = 0; round < 2; round++) {

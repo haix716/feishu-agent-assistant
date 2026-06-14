@@ -6,16 +6,17 @@ import {
   parseFileCommand,
   stripAtMention,
 } from "../util";
-import { ToolManager, GetTimeTool, SearchDocTool } from "../tools";
+import { ToolManager, GetTimeTool, SearchDocTool, SearchInsightsTool } from "../tools";
 import { searchImages } from "../rag";
 import { larkService } from "../lark";
-import { recordFeedback } from "../metacognition";
+import { recordFeedback, getPushedManifest } from "../metacognition";
 import type { LarkChannel, NormalizedMessage } from "@larksuiteoapi/node-sdk";
 
 // 初始化工具管理器
 const toolManager = new ToolManager();
 toolManager.register(new GetTimeTool());
 toolManager.register(new SearchDocTool());
+toolManager.register(new SearchInsightsTool());
 
 /** 每用户对话历史 */
 const conversations = new Map<string, ChatMessage[]>();
@@ -81,6 +82,7 @@ export async function handleTextMessage(
   channel: LarkChannel,
   msg: NormalizedMessage,
 ): Promise<void> {
+  console.log(`[debug-htop] ENTER handleTextMessage content=|${JSON.stringify(msg.content)}| type=${typeof msg.content}`);
   const userId = msg.senderId;
   const chatId = msg.chatId;
   const chatType = msg.chatType;
@@ -159,6 +161,24 @@ export async function handleTextMessage(
       }
     }
 
+    // 数字追问：用户回复纯数字 N，展开今日灵犀日报的第 N 条
+    console.log(`[debug-daily] query=|${query}| trim=|${query.trim()}|`);
+    const numMatch = query.trim().match(/^(\d{1,2})$/);
+    console.log(`[debug-daily] numMatch=${numMatch ? numMatch[1] : 'null'}`);
+    if (numMatch) {
+      const n = parseInt(numMatch[1], 10);
+      const manifest = getPushedManifest();
+      console.log(`[debug-daily] manifest.count=${manifest ? manifest.count : 'null'} n=${n}`);
+      if (manifest && n >= 1 && n <= manifest.count) {
+        const item = manifest.items[n - 1];
+        query =
+          `（用户在今日灵犀日报下回复了 "${numMatch[1]}"，想深入了解第 ${n} 条洞察。` +
+          `请基于这条展开：它是什么、为什么重要、以及对晓燕的工作（AI 开发 / 灵犀系统 / 小红书店铺）有什么启发。）\n\n` +
+          `第 ${n} 条 [${item.domain}]（${item.score} 分）：${item.insight}`;
+        console.log(`[${userId}] 数字追问展开: 第 ${n} 条 [${item.domain}]`);
+      }
+    }
+
     // 并发检查
     if (running.get(userId)) {
       await channel.send(
@@ -180,7 +200,7 @@ export async function handleTextMessage(
     }
     const history = conversations.get(userId)!;
 
-    // 追加用户消息
+    // 追加用户消息（灵犀知识库检索注入在 ai.ts streamAIWithTools 里做，这里不重复）
     history.push({ role: "user", content: query });
 
     // 裁剪历史
