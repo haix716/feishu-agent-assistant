@@ -212,7 +212,7 @@ export function buildDailyCard(manifest: PushedManifest): Record<string, unknown
   const insightLines = manifest.items
     .map(
       (item) =>
-        `${item.index}. **[${item.domain}]** ${item.insight.length > 50 ? item.insight.slice(0, 50) + "..." : item.insight}（${item.score}分）`,
+        `${item.index}. **[${item.domain}]** ${item.insight}（${item.score}分）`,
     )
     .join("\n");
 
@@ -234,7 +234,7 @@ export function buildDailyCard(manifest: PushedManifest): Record<string, unknown
         tag: "div",
         text: {
           tag: "lark_md",
-          content: `📊 采集 ${manifest.count} 条，阈值 ${manifest.threshold} 分 | 回个数字我就展开讲`,
+          content: `📊 采集 ${manifest.count} 条，阈值 ${manifest.threshold} 分 | 我今天看到这些，想告诉你——哪条你想聊聊？回个数字我就展开讲。`,
         },
       },
     ],
