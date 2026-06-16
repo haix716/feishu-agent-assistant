@@ -111,9 +111,12 @@ export async function streamAIWithTools(
 
   // 主动检索灵犀知识库：把最后一条 user message 用检索结果增强。
   // 不靠 AI 工具调用——MiMo 用 <tool_call> 文本格式，不兼容 openai tool_calls，调了等于没调。
+  let sourcePrefix = "";
   const lastMsg = openaiMessages[openaiMessages.length - 1];
   if (lastMsg && lastMsg.role === "user" && typeof lastMsg.content === "string") {
-    lastMsg.content = await retrieveAndAugment(lastMsg.content, 5);
+    const { augmentedQuery, sourcePrefix: sp } = await retrieveAndAugment(lastMsg.content, 5);
+    lastMsg.content = augmentedQuery;
+    sourcePrefix = sp;
   }
 
   // 最多 2 轮工具调用
@@ -161,8 +164,9 @@ export async function streamAIWithTools(
 
     // 不需要工具，返回结果
     const content = choice.message.content || "";
-    onChunk(content);
-    return content;
+    const finalText = sourcePrefix ? `${sourcePrefix}\n\n${content}` : content;
+    onChunk(finalText);
+    return finalText;
   }
 
   // 2 轮工具调用后，强制生成最终回复（不带工具）
@@ -173,8 +177,9 @@ export async function streamAIWithTools(
   });
 
   const finalContent = finalResponse.choices[0]?.message?.content || "";
-  onChunk(finalContent);
-  return finalContent;
+  const finalText = sourcePrefix ? `${sourcePrefix}\n\n${finalContent}` : finalContent;
+  onChunk(finalText);
+  return finalText;
 }
 
 export async function analyzeImage(

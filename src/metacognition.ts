@@ -107,15 +107,20 @@ export function getRecentInsights(
  *
  * 命中 0 条则原样返回 query（不注入）。
  */
-export function formatRetrieved(query: string, hits: InsightHit[]): string {
-  if (hits.length === 0) return query;
+export function formatRetrieved(
+  query: string,
+  hits: InsightHit[],
+): { augmentedQuery: string; sourcePrefix: string } {
+  if (hits.length === 0) return { augmentedQuery: query, sourcePrefix: "" };
   const retrieved = hits
     .map(
       (r, i) =>
         `${i + 1}. [${r.domain}]（${r.score}分，采集于${r.extractedAt?.split("T")[0] ?? "?"}）${r.insight}`,
     )
     .join("\n");
-  return `${query}\n\n[灵犀知识库检索到以下相关内容，回答时优先引用这些（含采集时效）；没覆盖的再用通识并说明：]\n${retrieved}`;
+  const sourcePrefix = `[灵犀] 检索到 ${hits.length} 条相关内容（均采集于 ${hits[0]?.extractedAt?.split("T")[0] ?? "?"}，评分 ${hits[0]?.score ?? "?"} 分）：\n${retrieved}`;
+  const augmentedQuery = `${query}\n\n${sourcePrefix}`;
+  return { augmentedQuery, sourcePrefix };
 }
 
 /**
@@ -128,7 +133,7 @@ export function formatRetrieved(query: string, hits: InsightHit[]): string {
 export async function retrieveAndAugment(
   query: string,
   limit = 5,
-): Promise<string> {
+): Promise<{ augmentedQuery: string; sourcePrefix: string }> {
   console.log("[retrieveAndAugment] 调用, query:", query);
   const hits = await searchInsightsViaMCP(query, limit);
   console.log("[retrieveAndAugment] hits:", hits.length);
