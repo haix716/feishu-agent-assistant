@@ -206,87 +206,38 @@ export async function getInsightDetail(
 }
 
 /**
- * 生成日报飞书卡片 JSON（每条新闻是 column_set，点击跳详情）
- *
- * 飞书卡片 markdown 不支持点击回调，column_set 支持 click action。
- * 每条新闻渲染为一个 column_set，点击任意位置触发 cardAction → 发详情卡片。
+ * 生成日报飞书卡片 JSON（markdown 列表格式）
  */
 export function buildDailyCard(manifest: PushedManifest): Record<string, unknown> {
-  const elements: Array<Record<string, unknown>> = [];
-
-  for (const item of manifest.items) {
-    const shortInsight =
-      item.insight.length > 60 ? item.insight.slice(0, 60) + "..." : item.insight;
-
-    elements.push({
-      tag: "column_set",
-      flex_mode: "none",
-      background_style: "default",
-      columns: [
-        {
-          tag: "column",
-          width: "weighted",
-          weight: 1,
-          vertical_align: "top",
-          elements: [
-            {
-              tag: "markdown",
-              content: `**${item.index}.** [${item.domain}]（${item.score}分）`,
-            },
-          ],
-        },
-        {
-          tag: "column",
-          width: "weighted",
-          weight: 3,
-          vertical_align: "top",
-          elements: [
-            {
-              tag: "markdown",
-              content: shortInsight,
-            },
-          ],
-        },
-      ],
-      click: {
-        tag: "action",
-        actions: [
-          {
-            tag: "button",
-            type: "default",
-            text: { tag: "plain_text", content: " " },
-            value: {
-              action: "view_daily_detail",
-              sourceId: item.sourceId,
-              index: item.index,
-            },
-          },
-        ],
-      },
-    });
-
-    // 每条之间加分隔线（最后一条不加）
-    if (item.index < manifest.count) {
-      elements.push({ tag: "hr" });
-    }
-  }
-
-  // 底部统计
-  elements.push({ tag: "hr" });
-  elements.push({
-    tag: "div",
-    text: {
-      tag: "lark_md",
-      content: `📊 采集 ${manifest.count} 条，阈值 ${manifest.threshold} 分 | 点击任意新闻查看详情`,
-    },
-  });
+  const insightLines = manifest.items
+    .map(
+      (item) =>
+        `${item.index}. **[${item.domain}]** ${item.insight.length > 50 ? item.insight.slice(0, 50) + "..." : item.insight}（${item.score}分）`,
+    )
+    .join("\n");
 
   return {
     header: {
       title: { tag: "plain_text", content: `✨ 灵犀日报 ${manifest.date}` },
       template: "purple",
     },
-    elements,
+    elements: [
+      {
+        tag: "div",
+        text: {
+          tag: "lark_md",
+          content: insightLines,
+        },
+      },
+      { tag: "hr" },
+      {
+        tag: "div",
+        text: {
+          tag: "lark_md",
+          content: `📊 采集 ${manifest.count} 条，阈值 ${manifest.threshold} 分 | 回个数字我就展开讲`,
+        },
+      },
+    ],
   };
 }
 
