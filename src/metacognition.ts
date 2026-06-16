@@ -21,14 +21,11 @@ const SYSTEM_CAPABILITIES = `### 灵犀系统当前能力
 这是一个已经在运行的元认知系统，包含以下功能：
 1. **知识采集**：从 GitHub trending、ArXiv、RSS（Hacker News/TechCrunch）、聚焦公司/技术方向自动采集
 2. **洞察提取**：LLM 对采集到的知识进行评分、分类、提取洞察
-3. **日度反思**：每天生成反思报告，包含今日要点、模式识别、知识缺口、连接发现、认知变化追踪
+3. **日度反思**：每天生成反思报告
 4. **日报推送**：每日自动推送到飞书群聊/私聊
-5. **连接发现**：将外部知识与晓燕的工作（飞书助手、元认知系统、小红书店铺）关联
-6. **反馈回路**：记录用户在飞书中的互动，回流到反思引擎调整权重
-7. **判断力追踪**：分析不同 Claude 会话之间的判断一致性（judge-track 工具）
-8. **自记录**：每个 Claude 会话可以留下判断、问题、原始想法给下一个 Claude
-9. **Obsidian 集成**：读取日记和项目文档作为个人上下文
-10. **飞书助手**：独立项目，负责对话、图片生成、文件管理，通过 metacognition 模块读取本系统的知识
+5. **反馈回路**：记录用户在飞书中的互动，回流到反思引擎调整权重
+6. **判断力追踪**：分析不同 Claude 会话之间的判断一致性（judge-track 工具）
+7. **自记录**：每个 Claude 会话可以留下判断、问题、原始想法给下一个 Claude
 
 不要重复设计已有功能。如果用户提到某个方向，先确认是否已有实现，再建议改进。`;
 
@@ -132,7 +129,9 @@ export async function retrieveAndAugment(
   query: string,
   limit = 5,
 ): Promise<string> {
+  console.log("[retrieveAndAugment] 调用, query:", query);
   const hits = await searchInsightsViaMCP(query, limit);
+  console.log("[retrieveAndAugment] hits:", hits.length);
   return formatRetrieved(query, hits);
 }
 
