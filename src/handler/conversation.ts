@@ -167,7 +167,7 @@ export async function handleTextMessage(
     console.log(`[debug-daily] numMatch=${numMatch ? numMatch[1] : 'null'}`);
     if (numMatch) {
       const n = parseInt(numMatch[1], 10);
-      const manifest = getPushedManifest();
+      const manifest = await getPushedManifest();
       console.log(`[debug-daily] manifest.count=${manifest ? manifest.count : 'null'} n=${n}`);
       if (manifest && n >= 1 && n <= manifest.count) {
         const item = manifest.items[n - 1];

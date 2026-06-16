@@ -113,7 +113,7 @@ export async function streamAIWithTools(
   // 不靠 AI 工具调用——MiMo 用 <tool_call> 文本格式，不兼容 openai tool_calls，调了等于没调。
   const lastMsg = openaiMessages[openaiMessages.length - 1];
   if (lastMsg && lastMsg.role === "user" && typeof lastMsg.content === "string") {
-    lastMsg.content = retrieveAndAugment(lastMsg.content, 5);
+    lastMsg.content = await retrieveAndAugment(lastMsg.content, 5);
   }
 
   // 最多 2 轮工具调用

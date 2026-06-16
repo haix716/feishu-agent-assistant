@@ -1,5 +1,5 @@
 import { Tool, type ToolParameter } from "./tool";
-import { searchInsights } from "../metacognition";
+import { searchInsightsViaMCP } from "../mcp-client";
 
 /**
  * 搜索灵犀知识库工具
@@ -25,7 +25,7 @@ export class SearchInsightsTool extends Tool {
       return "请提供搜索关键词";
     }
 
-    const results = searchInsights(query, 8);
+    const results = await searchInsightsViaMCP(query, 8);
     if (results.length === 0) {
       return `灵犀知识库里没找到"${query}"相关的洞察`;
     }

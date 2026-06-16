@@ -9,6 +9,12 @@
 
 import fs from "fs";
 import path from "path";
+import {
+  searchInsightsViaMCP,
+  getPushedManifestViaMCP,
+  type InsightHit,
+  type PushedManifest,
+} from "./mcp-client";
 
 /** 系统能力清单（硬编码，新功能上线后更新） */
 const SYSTEM_CAPABILITIES = `### 灵犀系统当前能力
@@ -100,103 +106,11 @@ export function getRecentInsights(
 }
 
 /**
- * 关键词搜索灵犀知识库的洞察（跨所有日期和领域）。
+ * 把检索命中拼进 query（纯函数，不依赖 MCP/文件，可单元测试）。
  *
- * 供 bot 的 SearchInsightsTool 调用——回答前主动检索，而不是靠被动注入。
- * 返回带 extractedAt，让回答能引用来源和时效。
- */
-export function searchInsights(
-  query: string,
-  limit: number = 8,
-): Array<{
-  domain: string;
-  insight: string;
-  score: number;
-  extractedAt?: string;
-  sourceId?: string;
-}> {
-  const q = query.toLowerCase().trim();
-  if (!q) return [];
-  // 分词匹配：query 拆成关键词（空格/标点），任一命中即算相关
-  // 解决"SpaceX IPO"匹配"SpaceX估值争议"——连续子串匹配不上，分词后 spacex 命中
-  const terms = q.split(/[\s,，。、；;？?！!]+/).filter((t) => t.length > 0);
-  const insightsDir = path.join(METACOGNITION_BASE, "insights");
-  if (!fs.existsSync(insightsDir)) return [];
-
-  const results: Array<{
-    domain: string;
-    insight: string;
-    score: number;
-    extractedAt?: string;
-    sourceId?: string;
-  }> = [];
-
-  const walk = (dir: string): void => {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (entry.name === "patterns") continue; // 跳过跨领域模式（无 score）
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        walk(full);
-      } else if (entry.name.endsWith(".json")) {
-        try {
-          const ins = JSON.parse(fs.readFileSync(full, "utf-8"));
-          const hay =
-            `${ins.domain ?? ""} ${ins.insight ?? ""} ${ins.relevance ?? ""} ${ins.connection ?? ""}`.toLowerCase();
-          // 任一关键词命中即算相关（OR 匹配）
-          if (terms.some((term) => hay.includes(term))) {
-            results.push({
-              domain: ins.domain,
-              insight: ins.insight,
-              score: ins.score,
-              extractedAt: ins.extractedAt,
-              sourceId: ins.sourceId,
-            });
-          }
-        } catch {
-          // skip invalid
-        }
-      }
-    }
-  };
-
-  walk(insightsDir);
-  // 按 sourceId 去重（历史遗留：领域目录迁移导致同 insight 在旧+新目录都有）
-  const seen = new Map<string, (typeof results)[number]>();
-  for (const r of results) {
-    const key = r.sourceId ?? r.insight;
-    const prev = seen.get(key);
-    if (!prev || (r.score ?? 0) > (prev.score ?? 0)) seen.set(key, r);
-  }
-  const deduped = Array.from(seen.values());
-  // 排序：score + 近期加权（近期的加分，避免旧高分一直排前面导致"昨天/前天"的新闻被引用）
-  const now = Date.now();
-  const dayMs = 86400000;
-  const recency = (at?: string): number => {
-    if (!at) return 0;
-    const days = (now - new Date(at).getTime()) / dayMs;
-    return Math.max(0, 5 - days); // 近 1 天 +5，递减，5 天外归 0
-  };
-  const sorted = deduped
-    .sort(
-      (a, b) =>
-        (b.score ?? 0) + recency(b.extractedAt) - ((a.score ?? 0) + recency(a.extractedAt)),
-    )
-    .slice(0, limit);
-  console.log(
-    `[检索] query="${query}" 命中${results.length}条${sorted[0] ? ` | top1: [${sorted[0].domain}] ${sorted[0].score}分 采集于${sorted[0].extractedAt ?? "?"}` : ""}`,
-  );
-  return sorted;
-}
-
-/**
- * 检索灵犀知识库并把结果拼进 query（纯函数，不依赖 channel/bot，可单元测试）。
- *
- * conversation 收到消息后调这个——把检索结果作为上下文附在 query 后，
- * 让 AI 看到"灵犀已采集的相关内容（带时效）"，优先引用。
  * 命中 0 条则原样返回 query（不注入）。
  */
-export function retrieveAndAugment(query: string, limit = 5): string {
-  const hits = searchInsights(query, limit);
+export function formatRetrieved(query: string, hits: InsightHit[]): string {
   if (hits.length === 0) return query;
   const retrieved = hits
     .map(
@@ -205,6 +119,21 @@ export function retrieveAndAugment(query: string, limit = 5): string {
     )
     .join("\n");
   return `${query}\n\n[灵犀知识库检索到以下相关内容，回答时优先引用这些（含采集时效）；没覆盖的再用通识并说明：]\n${retrieved}`;
+}
+
+/**
+ * 通过 MCP 检索灵犀知识库并改写 query。
+ *
+ * 走灵犀 MCP server 的 search_insights（不再直接读灵犀文件 = 解耦）。
+ * MCP 连接失败时 searchInsightsViaMCP 返回 []，formatRetrieved 原样返回 query
+ * ——bot 仍能回答，只是没有灵犀上下文。
+ */
+export async function retrieveAndAugment(
+  query: string,
+  limit = 5,
+): Promise<string> {
+  const hits = await searchInsightsViaMCP(query, limit);
+  return formatRetrieved(query, hits);
 }
 
 /**
@@ -247,39 +176,14 @@ export function getLatestDigest(): string | null {
   return fs.readFileSync(path.join(digestDir, files[0]), "utf-8");
 }
 
-/** 推送清单 manifest（编号 → 洞察），灵犀与飞书助手之间的数据契约 */
-export interface PushedManifest {
-  date: string;
-  pushedAt: string;
-  threshold: number;
-  count: number;
-  items: Array<{
-    index: number;
-    domain: string;
-    insight: string;
-    score: number;
-  }>;
-}
-
 /**
- * 读取今日推送清单 manifest（灵犀推送时落盘的编号 → 洞察映射）。
+ * 读取今日推送清单 manifest（走 MCP get_pushed_manifest，不再直接读灵犀文件）。
  *
- * 用于追问"第 N 条"：bot 不再靠 digest 猜，直接读这份和当日卡片 1:1 对应的清单，
- * 取第 N 条的完整内容喂给 AI 展开。
+ * 用于追问"第 N 条"：取和当日卡片 1:1 对应的清单，喂给 AI 展开第 N 条。
+ * PushedManifest 类型来自 mcp-client，与灵犀推送契约一致。
  */
-export function getPushedManifest(): PushedManifest | null {
-  const today = new Date().toISOString().split("T")[0];
-  const file = path.join(
-    METACOGNITION_BASE,
-    "push-state",
-    `daily-${today}.json`,
-  );
-  if (!fs.existsSync(file)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf-8")) as PushedManifest;
-  } catch {
-    return null;
-  }
+export async function getPushedManifest(): Promise<PushedManifest | null> {
+  return getPushedManifestViaMCP();
 }
 
 /**
