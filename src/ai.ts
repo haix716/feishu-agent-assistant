@@ -50,7 +50,7 @@ export async function streamAI(
   messages: ChatMessage[],
   onChunk: (text: string) => void,
   ctx?: ChatContext,
-): Promise<string> {
+): Promise<{ text: string; hits: import("./mcp-client").InsightHit[] }> {
   const systemPrompt = buildSystemPrompt(ctx);
 
   const openaiMessages = [
@@ -76,7 +76,7 @@ export async function streamAI(
       onChunk(fullText);
     }
   }
-  return fullText;
+  return { text: fullText, hits: [] };
 }
 
 /**
@@ -92,7 +92,7 @@ export async function streamAIWithTools(
   onChunk: (text: string) => void,
   ctx?: ChatContext,
   toolManager?: ToolManager,
-): Promise<string> {
+): Promise<{ text: string; hits: import("./mcp-client").InsightHit[] }> {
   if (!toolManager || toolManager.size === 0) {
     // 没有工具，走普通流程
     return streamAI(messages, onChunk, ctx);
@@ -112,11 +112,13 @@ export async function streamAIWithTools(
   // 主动检索灵犀知识库：把最后一条 user message 用检索结果增强。
   // 不靠 AI 工具调用——MiMo 用 <tool_call> 文本格式，不兼容 openai tool_calls，调了等于没调。
   let sourcePrefix = "";
+  let hits: import("./mcp-client").InsightHit[] = [];
   const lastMsg = openaiMessages[openaiMessages.length - 1];
   if (lastMsg && lastMsg.role === "user" && typeof lastMsg.content === "string") {
-    const { augmentedQuery, sourcePrefix: sp } = await retrieveAndAugment(lastMsg.content, 5);
+    const { augmentedQuery, sourcePrefix: sp, allHits } = await retrieveAndAugment(lastMsg.content, 5);
     lastMsg.content = augmentedQuery;
     sourcePrefix = sp;
+    hits = allHits;
   }
 
   // 最多 2 轮工具调用
@@ -166,7 +168,7 @@ export async function streamAIWithTools(
     const content = choice.message.content || "";
     const finalText = sourcePrefix ? `${sourcePrefix}\n\n${content}` : content;
     onChunk(finalText);
-    return finalText;
+    return { text: finalText, hits };
   }
 
   // 2 轮工具调用后，强制生成最终回复（不带工具）
@@ -179,7 +181,7 @@ export async function streamAIWithTools(
   const finalContent = finalResponse.choices[0]?.message?.content || "";
   const finalText = sourcePrefix ? `${sourcePrefix}\n\n${finalContent}` : finalContent;
   onChunk(finalText);
-  return finalText;
+  return { text: finalText, hits };
 }
 
 export async function analyzeImage(

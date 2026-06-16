@@ -140,3 +140,47 @@ export async function closeMCPClient(): Promise<void> {
     client = null;
   }
 }
+
+/** 洞察详情结构（含原始内容） */
+export interface InsightDetail {
+  insight: {
+    id: string;
+    sourceId: string;
+    insight: string;
+    relevance?: string;
+    connection?: string;
+    score: number;
+    domain: string;
+    extractedAt?: string;
+  };
+  rawItem: {
+    id: string;
+    source: string;
+    type: string;
+    title: string;
+    description?: string;
+    url?: string;
+    metadata?: Record<string, unknown>;
+    collectedAt?: string;
+  } | null;
+}
+
+/** 获取单条洞察详情（含原始内容） */
+export async function getInsightDetailViaMCP(
+  sourceId: string,
+): Promise<InsightDetail | null> {
+  try {
+    const c = await getClient();
+    const result = await c.callTool({
+      name: "get_insight_detail",
+      arguments: { sourceId },
+    });
+    const text = extractText(result);
+    if (!text || text.includes("未找到")) return null;
+    return JSON.parse(text) as InsightDetail;
+  } catch (err) {
+    console.error("[mcp-client] get_insight_detail 失败:", err);
+    resetConnection();
+    return null;
+  }
+}

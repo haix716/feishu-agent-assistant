@@ -12,8 +12,10 @@ import path from "path";
 import {
   searchInsightsViaMCP,
   getPushedManifestViaMCP,
+  getInsightDetailViaMCP,
   type InsightHit,
   type PushedManifest,
+  type InsightDetail,
 } from "./mcp-client";
 
 /** 系统能力清单（硬编码，新功能上线后更新） */
@@ -110,17 +112,23 @@ export function getRecentInsights(
 export function formatRetrieved(
   query: string,
   hits: InsightHit[],
-): { augmentedQuery: string; sourcePrefix: string } {
-  if (hits.length === 0) return { augmentedQuery: query, sourcePrefix: "" };
-  const retrieved = hits
+): { augmentedQuery: string; sourcePrefix: string; allHits: InsightHit[] } {
+  if (hits.length === 0)
+    return { augmentedQuery: query, sourcePrefix: "", allHits: [] };
+  // 只展示前 3 条，剩下的让 AI 按需引用
+  const topHits = hits.slice(0, 3);
+  const retrieved = topHits
     .map(
       (r, i) =>
         `${i + 1}. [${r.domain}]（${r.score}分，采集于${r.extractedAt?.split("T")[0] ?? "?"}）${r.insight}`,
     )
     .join("\n");
-  const sourcePrefix = `[灵犀] 检索到 ${hits.length} 条相关内容（均采集于 ${hits[0]?.extractedAt?.split("T")[0] ?? "?"}，评分 ${hits[0]?.score ?? "?"} 分）：\n${retrieved}`;
+  const extraCount = hits.length - topHits.length;
+  const extraNote =
+    extraCount > 0 ? `\n（另有 ${extraCount} 条，回复「全部」查看详情）` : "";
+  const sourcePrefix = `[灵犀] 检索到 ${hits.length} 条相关内容（采集于 ${hits[0]?.extractedAt?.split("T")[0] ?? "?"}）：\n${retrieved}${extraNote}`;
   const augmentedQuery = `${query}\n\n${sourcePrefix}`;
-  return { augmentedQuery, sourcePrefix };
+  return { augmentedQuery, sourcePrefix, allHits: hits };
 }
 
 /**
@@ -133,7 +141,7 @@ export function formatRetrieved(
 export async function retrieveAndAugment(
   query: string,
   limit = 5,
-): Promise<{ augmentedQuery: string; sourcePrefix: string }> {
+): Promise<{ augmentedQuery: string; sourcePrefix: string; allHits: InsightHit[] }> {
   console.log("[retrieveAndAugment] 调用, query:", query);
   const hits = await searchInsightsViaMCP(query, limit);
   console.log("[retrieveAndAugment] hits:", hits.length);
@@ -188,6 +196,13 @@ export function getLatestDigest(): string | null {
  */
 export async function getPushedManifest(): Promise<PushedManifest | null> {
   return getPushedManifestViaMCP();
+}
+
+/** 获取单条洞察详情（含原始新闻内容） */
+export async function getInsightDetail(
+  sourceId: string,
+): Promise<InsightDetail | null> {
+  return getInsightDetailViaMCP(sourceId);
 }
 
 /**

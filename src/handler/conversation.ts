@@ -9,7 +9,13 @@ import {
 import { ToolManager, GetTimeTool, SearchDocTool, SearchInsightsTool } from "../tools";
 import { searchImages } from "../rag";
 import { larkService } from "../lark";
-import { recordFeedback, getPushedManifest } from "../metacognition";
+import {
+  recordFeedback,
+  getPushedManifest,
+  getInsightDetail,
+  retrieveAndAugment,
+} from "../metacognition";
+import type { InsightHit } from "../mcp-client";
 import type { LarkChannel, NormalizedMessage } from "@larksuiteoapi/node-sdk";
 
 // 初始化工具管理器
@@ -23,6 +29,9 @@ const conversations = new Map<string, ChatMessage[]>();
 
 /** 每用户并发锁 */
 const running = new Map<string, boolean>();
+
+/** 每用户最近一次检索命中（用于"全部"追问） */
+const lastHits = new Map<string, InsightHit[]>();
 
 /** 获取上下文信息（用户名、群名） */
 async function fetchContext(
@@ -189,6 +198,33 @@ export async function handleTextMessage(
       return;
     }
 
+    // "全部"追问：发送完整检索结果 + 原始内容
+    if (query === "全部" && lastHits.has(userId)) {
+      const hits = lastHits.get(userId)!;
+      const detailLines: string[] = [];
+      for (const h of hits) {
+        const detail = h.sourceId
+          ? await getInsightDetail(h.sourceId)
+          : null;
+        const raw = detail?.rawItem;
+        detailLines.push(
+          `【${h.domain}】${h.insight}\n` +
+            `评分 ${h.score} | 采集于 ${(h.extractedAt ?? "").split("T")[0]}` +
+            (raw?.title ? `\n原始标题：${raw.title}` : "") +
+            (raw?.url ? `\n链接：${raw.url}` : "") +
+            (raw?.description
+              ? `\n原始内容：${raw.description.slice(0, 300)}`
+              : ""),
+        );
+      }
+      const detailText =
+        `[灵犀] 全部 ${hits.length} 条检索详情：\n\n` +
+        detailLines.join("\n\n---\n\n");
+      await channel.send(chatId, { text: detailText }, { replyTo: messageId });
+      running.set(userId, false);
+      return;
+    }
+
     // 获取上下文信息
     console.log(`[${userId}] 获取上下文...`);
     const ctx = await fetchContext(userId, chatId, chatType);
@@ -213,12 +249,13 @@ export async function handleTextMessage(
     // 流式输出
     console.log(`[${userId}] 调用 AI API...`);
     let fullText = "";
+    let hits: InsightHit[] = [];
     await channel.stream(
       chatId,
       {
         markdown: async (s) => {
           let lastText = "";
-          fullText = await streamAIWithTools(
+          const result = await streamAIWithTools(
             history,
             (text) => {
               if (text !== lastText) {
@@ -229,11 +266,18 @@ export async function handleTextMessage(
             ctx,
             toolManager,
           );
+          fullText = result.text;
+          hits = result.hits;
         },
       },
       { replyTo: messageId },
     );
     console.log(`[${userId}] AI 回复完成，长度: ${fullText.length}`);
+
+    // 存储最近检索命中（供"全部"追问）
+    if (hits.length > 0) {
+      lastHits.set(userId, hits);
+    }
 
     history.push({ role: "assistant", content: fullText });
 
