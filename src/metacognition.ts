@@ -206,6 +206,64 @@ export async function getInsightDetail(
 }
 
 /**
+ * 生成日报飞书卡片 JSON（table 组件 + 行点击回调）
+ *
+ * 每条洞察是一个 table row，点击触发 cardAction → 发详情卡片。
+ */
+export function buildDailyCard(manifest: PushedManifest): Record<string, unknown> {
+  const rows = manifest.items.map((item) => ({
+    index: String(item.index),
+    domain: item.domain,
+    insight: item.insight.length > 60 ? item.insight.slice(0, 60) + "..." : item.insight,
+    score: String(item.score),
+  }));
+
+  return {
+    header: {
+      title: { tag: "plain_text", content: `✨ 灵犀日报 ${manifest.date}` },
+      template: "purple",
+    },
+    elements: [
+      {
+        tag: "table",
+        page_size: manifest.count,
+        row_height: "low",
+        header_style: {
+          text_align: "center",
+          text_size: "normal",
+          background_style: "grey",
+          text_color: "grey",
+          bold: true,
+        },
+        columns: [
+          { name: "index", display_name: "#", width: "auto", data_type: "text" },
+          { name: "domain", display_name: "领域", width: "auto", data_type: "text" },
+          { name: "insight", display_name: "洞察", width: "auto", data_type: "text" },
+          { name: "score", display_name: "评分", width: "auto", data_type: "text" },
+        ],
+        rows,
+      },
+      {
+        tag: "action",
+        actions: manifest.items.map((item) => ({
+          tag: "button",
+          type: "default",
+          text: { tag: "plain_text", content: `查看第 ${item.index} 条详情` },
+          value: { action: "view_daily_detail", sourceId: item.sourceId, index: item.index },
+        })),
+      },
+      {
+        tag: "div",
+        text: {
+          tag: "lark_md",
+          content: `📊 采集 ${manifest.count} 条，阈值 ${manifest.threshold} 分`,
+        },
+      },
+    ],
+  };
+}
+
+/**
  * 生成元认知上下文（带缓存，1 小时刷新）
  *
  * 包含五部分：

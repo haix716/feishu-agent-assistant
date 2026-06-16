@@ -1,4 +1,5 @@
 import type { LarkChannel } from "@larksuiteoapi/node-sdk";
+import { getInsightDetail } from "../metacognition";
 
 interface CardActionEvent {
   messageId: string;
@@ -73,6 +74,58 @@ export async function handleCardAction(
         { replyTo: messageId },
       );
       // TODO: 触发重新生成逻辑
+      return;
+    }
+
+    // 查看日报详情
+    if (actionValue === "view_daily_detail") {
+      const fullValue = action.value as {
+        action: string;
+        sourceId?: string;
+        index?: string;
+      };
+      const sourceId = fullValue.sourceId;
+      const index = fullValue.index;
+      if (!sourceId) {
+        await channel.send(
+          chatId,
+          { text: "❌ 无 sourceId，无法查看详情" },
+          { replyTo: messageId },
+        );
+        return;
+      }
+      console.log(`[cardAction] 查看详情 sourceId=${sourceId}`);
+      const detail = await getInsightDetail(sourceId);
+      if (!detail) {
+        await channel.send(
+          chatId,
+          { text: `❌ 未找到 sourceId=${sourceId} 的详情` },
+          { replyTo: messageId },
+        );
+        return;
+      }
+      const raw = detail.rawItem;
+      const lines = [
+        `**第 ${index} 条详情**`,
+        "",
+        `**领域：** ${detail.insight.domain}`,
+        `**评分：** ${detail.insight.score} 分`,
+        `**采集于：** ${(detail.insight.extractedAt ?? "").split("T")[0]}`,
+        "",
+        `**洞察：**`,
+        detail.insight.insight,
+      ];
+      if (detail.insight.relevance) {
+        lines.push("", `**相关性：**`, detail.insight.relevance);
+      }
+      if (raw) {
+        lines.push("", "---", `**原始内容：**`);
+        if (raw.title) lines.push(`标题：${raw.title}`);
+        if (raw.url) lines.push(`链接：${raw.url}`);
+        if (raw.description)
+          lines.push(`摘要：${raw.description.slice(0, 500)}`);
+      }
+      await channel.send(chatId, { text: lines.join("\n") }, { replyTo: messageId });
       return;
     }
   } catch (err) {

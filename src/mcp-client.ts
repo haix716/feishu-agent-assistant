@@ -33,6 +33,7 @@ export interface PushedManifest {
     domain: string;
     insight: string;
     score: number;
+    sourceId: string;
   }>;
 }
 
